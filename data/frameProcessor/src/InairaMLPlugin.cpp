@@ -1,0 +1,71 @@
+/*
+
+methods we'll need:
+load model
+send data to model
+get result from model (store in... */
+
+
+#include <InairaMLPlugin.h>
+#include "version.h"
+
+namespace FrameProcessor
+{
+
+    /**
+     * The constructor
+     */
+    InairaMLPlugin::InairaMLPlugin()
+    {
+        //Setup logging
+        logger_ = Logger::getLogger("FP.InairaMLPlugin");
+        logger_->setLevel(Level::getAll());
+        LOG4CXX_TRACE(logger_, "InairaMLPlugin version " <<
+                      this->get_version_long() << " loaded.");
+    }
+
+    InairaMLPlugin::~InairaMLPlugin()
+    {
+        LOG4CXX_TRACE(logger_, "InairaMLPlugin Destructor.");
+    }
+
+
+    /**
+     * Configure the Inaira plugin.  This receives an IpcMessage which should be processed
+     * to configure the plugin, and any response can be added to the reply IpcMessage.  This
+     * plugin supports the following configuration parameters:
+     * 
+     * - xx_      <=> xx
+     *
+     * \param[in] config - Reference to the configuration IpcMessage object.
+     * \param[in] reply - Reference to the reply IpcMessage object.
+     */
+    void InairaMLPlugin::configure(OdinData::IpcMessage& config, OdinData::IpcMessage& reply)
+    {
+        //send configuration to the plugin
+    }
+
+    void InairaMLPlugin::requestConfiguration(OdinData::IpcMessage& reply)
+    {
+        //return the config of the plugin
+    }
+
+    void InairaMLPlugin::status(OdinData::IpcMessage& status)
+    {
+        //return the status of the plugin
+        LOG4CXX_DEBUG(logger_, "Status requested for InairaMLPlugin");
+    }
+
+    bool InairaMLPlugin::reset_statistics(void)
+    {
+        return true;
+    }
+
+
+    void InairaMLPlugin::process_frame(boost::shared_ptr<Frame> frame)
+    {
+
+
+        this->push(frame);
+    }
+}
