@@ -11,6 +11,7 @@ get result from model (store in... */
 
 namespace FrameProcessor
 {
+    const std::string InairaMLPlugin::CONFIG_MODEL_PATH = "model_path";
 
     /**
      * The constructor
@@ -43,17 +44,28 @@ namespace FrameProcessor
     void InairaMLPlugin::configure(OdinData::IpcMessage& config, OdinData::IpcMessage& reply)
     {
         //send configuration to the plugin
+        if(config.has_param(InairaMLPlugin::CONFIG_MODEL_PATH))
+        {
+            model_path = config.get_param<std::string>(
+                InairaMLPlugin::CONFIG_MODEL_PATH
+            );
+            model_.loadModel(model_path);
+        }
     }
 
     void InairaMLPlugin::requestConfiguration(OdinData::IpcMessage& reply)
     {
         //return the config of the plugin
+
+        std::string base_str = get_name() + "/";
+        reply.set_param(base_str + InairaMLPlugin::CONFIG_MODEL_PATH, model_path);
     }
 
     void InairaMLPlugin::status(OdinData::IpcMessage& status)
     {
         //return the status of the plugin
         LOG4CXX_DEBUG(logger_, "Status requested for InairaMLPlugin");
+
     }
 
     bool InairaMLPlugin::reset_statistics(void)
@@ -61,11 +73,10 @@ namespace FrameProcessor
         return true;
     }
 
-
     void InairaMLPlugin::process_frame(boost::shared_ptr<Frame> frame)
     {
-
-
+        // std::vector<float> data = model_.runModel(frame);
+        // do a something with the results from running the ML
         this->push(frame);
     }
 }
