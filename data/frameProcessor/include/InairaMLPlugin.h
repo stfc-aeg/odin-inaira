@@ -4,6 +4,7 @@
 #define INCLUDE_InairaMLPLUGIN_H_
 
 #include "InairaProcessorPlugin.h"
+#include "InairaMLCppflow.h"
 
 namespace FrameProcessor
 {
@@ -20,6 +21,12 @@ namespace FrameProcessor
 
         private:
             void process_frame(boost::shared_ptr<Frame> frame);
+
+            static const std::string CONFIG_MODEL_PATH;
+
+            std::string model_path;
+
+            InairaMLCppflow model_;
     };
 
     /**
