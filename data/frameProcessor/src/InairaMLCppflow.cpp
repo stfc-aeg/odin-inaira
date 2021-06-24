@@ -18,7 +18,7 @@ namespace FrameProcessor
     InairaMLCppflow::~InairaMLCppflow()
     {
         LOG4CXX_TRACE(logger_, "Inaira cppflow Link Destructor");
-        model_.reset();
+        model.reset();
     }
 
     bool InairaMLCppflow::loadModel(std::string file_name)
@@ -26,7 +26,7 @@ namespace FrameProcessor
         /*we use a pointer to the model so we don't have to have it initialized straight away*/
         try{
 
-            model_.reset(new cppflow::model(file_name));
+            model.reset(new cppflow::model(file_name));
         }
         catch(std::runtime_error& e)
         {
@@ -38,19 +38,36 @@ namespace FrameProcessor
 
     std::vector<float> InairaMLCppflow::runModel(boost::shared_ptr<Frame> frame)
     {
-        if(!model_)
+        if(!model)
         {
             LOG4CXX_ERROR(logger_, "Cannot run model: no model loaded");
             return std::vector<float>(-1);
 
         }
-        //we gotta somehow convert the shared ptr for data into the correct input type
-        void* frame_data_copy = (void*)frame->get_data_ptr();
-        // auto input = cppflow::cast(frame.data, TF_UINT, TF_FLOAT);
+        
+        LOG4CXX_DEBUG(logger_, "Extracting Frame Data");
+        const void* frame_data = (void*)frame->get_data_ptr();
+        const FrameMetaData meta_data = frame->get_meta_data();
+        std::size_t size = frame->get_data_size();
+        DataType type = meta_data.get_data_type();
+        dimensions_t dims = meta_data.get_dimensions();
+        
+        LOG4CXX_DEBUG(logger_, "Converting Frame Data");
+        std::vector<char> data;
+        memcpy(data.data(), frame_data, size);
+        cppflow::tensor input = cppflow::cast(data, TF_UINT16, TF_FLOAT);
 
-        // auto result = model_(input); // we'll probs want to change this into something more generic?
+        LOG4CXX_DEBUG(logger_, "Running model on Frame Data");
+        cppflow::model runable_model = *(model.get());
+        cppflow::tensor result = runable_model(input);
+
+        LOG4CXX_DEBUG(logger_, "Returning Model Results");
         std::vector<float> return_values;
-        return_values.push_back(0);
+        // for(int i = 0; i < result, i++)
+        // {
+        //     return_values.push_back(result[i]);
+        // }
+        
         return return_values;
     }
 }

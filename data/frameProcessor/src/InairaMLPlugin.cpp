@@ -75,7 +75,7 @@ namespace FrameProcessor
 
     void InairaMLPlugin::process_frame(boost::shared_ptr<Frame> frame)
     {
-        // std::vector<float> data = model_.runModel(frame);
+        std::vector<float> data = model_.runModel(frame);
         // do a something with the results from running the ML
         this->push(frame);
     }

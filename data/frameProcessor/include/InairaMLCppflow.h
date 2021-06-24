@@ -29,7 +29,7 @@ namespace FrameProcessor
             std::vector<float> runModel(boost::shared_ptr<Frame> frame);
 
         private:
-            boost::scoped_ptr<cppflow::model> model_;
+            boost::scoped_ptr<cppflow::model> model;
             LoggerPtr logger_;
     };
 }
