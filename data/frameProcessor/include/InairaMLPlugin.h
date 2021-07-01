@@ -4,6 +4,7 @@
 #define INCLUDE_InairaMLPLUGIN_H_
 
 #include "InairaProcessorPlugin.h"
+#include "DataBlockFrame.h"
 #include "InairaMLCppflow.h"
 
 namespace FrameProcessor

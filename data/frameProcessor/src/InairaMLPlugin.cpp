@@ -8,6 +8,7 @@ get result from model (store in... */
 
 #include <InairaMLPlugin.h>
 #include "version.h"
+#include "cppflow/cppflow.h"  /*TODO: Remove when ready*/
 
 namespace FrameProcessor
 {
@@ -50,6 +51,41 @@ namespace FrameProcessor
                 InairaMLPlugin::CONFIG_MODEL_PATH
             );
             model_.loadModel(model_path);
+
+            //hyjack the config method real quick to trigger the model running?
+
+            LOG4CXX_DEBUG(logger_, "Testing new model with Dummy Frame");
+            FrameMetaData frame_meta;
+            cppflow::tensor image_input = cppflow::decode_jpeg(cppflow::read_file(std::string("dog.jpg")));
+            LOG4CXX_DEBUG(logger_, "Image Tensor Shape: " << image_input.shape());
+            std::vector<uint8_t> image_data = image_input.get_data<uint8_t>();
+            LOG4CXX_DEBUG(logger_, "Image Data Size: " << image_data.size());
+
+            frame_meta.set_dataset_name("dog");
+            frame_meta.set_data_type(raw_8bit);
+            frame_meta.set_frame_number(0);
+            dimensions_t dims(3);
+            dims[0] = 600;
+            dims[1] = 800;
+            dims[2] = 3;
+            frame_meta.set_dimensions(dims);
+            frame_meta.set_compression_type(no_compression);
+
+            const std::size_t frame_size = image_data.size() * sizeof(uint8_t);
+
+            boost::shared_ptr<Frame> test_frame;
+            test_frame = boost::shared_ptr<Frame>(new DataBlockFrame(frame_meta, frame_size));
+
+            // std::memset(test_frame->get_data_ptr(), 25, frame_size);
+            std::memcpy(test_frame->get_data_ptr(), image_data.data(), frame_size);
+            
+
+            std::vector<float> result = model_.runModel(test_frame);
+            std::ostringstream result_string;
+            std::copy(result.begin(),
+                      result.end(),
+                      std::ostream_iterator<float>(result_string, ","));
+            LOG4CXX_DEBUG(logger_, "Result: " << result_string.str());
         }
     }
 

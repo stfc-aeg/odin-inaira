@@ -4,6 +4,7 @@
 
 // #include <InairaMLFramework.h>
 #include "cppflow/cppflow.h"
+#include <tensorflow/c/tf_tensor.h>
 
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
@@ -29,6 +30,7 @@ namespace FrameProcessor
             std::vector<float> runModel(boost::shared_ptr<Frame> frame);
 
         private:
+            static void test_deallocator(void* buffer, std::size_t len, void* arg);
             boost::scoped_ptr<cppflow::model> model;
             LoggerPtr logger_;
     };
