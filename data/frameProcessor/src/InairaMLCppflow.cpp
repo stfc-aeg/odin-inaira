@@ -6,7 +6,9 @@ namespace FrameProcessor
     /*
      * the constructor
      */
-    InairaMLCppflow::InairaMLCppflow()
+    InairaMLCppflow::InairaMLCppflow() :
+        input_layer_name("serving_default_input_1:0"),
+        output_layer_name("StatefulPartitionedCall:0")
     {
         logger_ = Logger::getLogger("FP.InairaCppFlow");
         logger_->setLevel(Level::getAll());
@@ -36,6 +38,21 @@ namespace FrameProcessor
         return true;
     }
 
+    bool InairaMLCppflow::setInputLayer(std::string input_name)
+    {
+        //TODO: potentially use model::get_operations() to check the layer used exists?
+        input_layer_name = input_name;
+        LOG4CXX_DEBUG(logger_, "Input Layer Name changed to: " << input_name);
+        return true;
+    }
+
+    bool InairaMLCppflow::setOutputLayer(std::string output_layer)
+    {
+        //TODO: potentially use model::get_operations() to check the layer used exists?
+        output_layer_name = output_layer;
+        return true;
+    }
+
     std::vector<float> InairaMLCppflow::runModel(boost::shared_ptr<Frame> frame)
     {
         if(!model)
@@ -51,14 +68,20 @@ namespace FrameProcessor
         std::size_t size = frame->get_data_size();
         DataType type = meta_data.get_data_type();
         dimensions_t dims = meta_data.get_dimensions();
-
-        int64_t buf_dims[] = {dims[0], dims[1], dims[2]};
-        int num_dims = 3;
+        
+        int64_t buf_dims[dims.size()];
+        for(int i = 0; i < dims.size(); i++)
+        {
+            buf_dims[i] = dims[i];
+        }
 
         int dealloc_arg = 123;
 
+        /*Create a tensor from the frame data. This copies the data into the Tensor format so that
+          it can be used by the model and CPPFlow methods
+        */
         TF_Tensor* buf_tensor = TF_NewTensor(
-            TF_UINT8, buf_dims, num_dims, const_cast<void*>(frame_data), size,
+            TF_UINT8, buf_dims, dims.size(), const_cast<void*>(frame_data), size,
             &InairaMLCppflow::test_deallocator, static_cast<void*>(&dealloc_arg)
         );
 
@@ -66,7 +89,7 @@ namespace FrameProcessor
         cppflow::tensor input = cppflow::tensor(buf_tensor);
         LOG4CXX_DEBUG(logger_, "INPUT SHAPE: " << input.shape());
         input = cppflow::cast(input, TF_UINT8, TF_FLOAT);
-        input = input / 255.f;
+        // input = input / 255.f;
         input = cppflow::expand_dims(input, 0);
         
         // cppflow::tensor input = cppflow::tensor(*(model.get()), "serving_default_input_layer");
@@ -74,11 +97,12 @@ namespace FrameProcessor
 
         LOG4CXX_DEBUG(logger_, "Running model on Frame Data");
         cppflow::model runable_model = *(model.get());
-        cppflow::tensor result = runable_model(input);
+        cppflow::tensor result = runable_model({{input_layer_name, input}},
+                                               {output_layer_name})[0];
 
         LOG4CXX_DEBUG(logger_, result);
 
-        LOG4CXX_DEBUG(logger_, "Max Result: " << cppflow::arg_max(result, 1));
+        // LOG4CXX_DEBUG(logger_, "Max Result: " << cppflow::arg_max(result, 1));
         
         LOG4CXX_DEBUG(logger_, "Returning Model Results");
         std::vector<float> return_values = result.get_data<float>();

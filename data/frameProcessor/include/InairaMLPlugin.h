@@ -24,6 +24,8 @@ namespace FrameProcessor
             void process_frame(boost::shared_ptr<Frame> frame);
 
             static const std::string CONFIG_MODEL_PATH;
+            static const std::string CONFIG_MODEL_INPUT_LAYER;
+            static const std::string CONFIG_MODEL_OUTPUT_LAYER;
 
             std::string model_path;
 

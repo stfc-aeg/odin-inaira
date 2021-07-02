@@ -11,7 +11,7 @@
             "load": {
                 "index":"learning",
                 "name":"InairaMLPlugin",
-                "library":"${INSTALL_PREFIX}/lib/libInairaMLPlugin.so"
+                "library":"./lib/libInairaMLPlugin.so"
             }
         }
     },
@@ -25,7 +25,8 @@
     },
     {
         "learning": {
-            "model_path": "./model/"
+            "model_path":"/aeg_sw/work/projects/inaira/casting/models/casting_prob_model/",
+            "model_input_layer":"serving_default_sequential_input:0"
         }
     }
 ]

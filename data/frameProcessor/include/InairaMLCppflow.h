@@ -27,7 +27,12 @@ namespace FrameProcessor
             virtual ~InairaMLCppflow();
 
             bool loadModel(std::string file_name);
+            bool setInputLayer(std::string input_layer);
+            bool setOutputLayer(std::string output_layer);
             std::vector<float> runModel(boost::shared_ptr<Frame> frame);
+
+            std::string input_layer_name;
+            std::string output_layer_name;
 
         private:
             static void test_deallocator(void* buffer, std::size_t len, void* arg);
