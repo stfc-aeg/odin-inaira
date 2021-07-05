@@ -26,8 +26,10 @@ namespace FrameProcessor
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
             static const std::string CONFIG_MODEL_OUTPUT_LAYER;
+            static const std::string CONFIG_DECODE_IMG_HEADER;
 
             std::string model_path;
+            bool decode_header;
 
             InairaMLCppflow model_;
     };

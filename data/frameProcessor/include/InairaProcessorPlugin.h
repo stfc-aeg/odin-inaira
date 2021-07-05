@@ -15,6 +15,8 @@ using namespace log4cxx::helpers;
 
 #include "version.h"
 
+#include "InairaDefinitions.h"
+
 namespace FrameProcessor
 {
 

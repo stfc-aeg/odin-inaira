@@ -63,9 +63,9 @@ namespace FrameProcessor
         }
 
         LOG4CXX_DEBUG(logger_, "Extracting Frame Data");
-        const void* frame_data = (void*)frame->get_data_ptr();
+        const void* frame_data = frame->get_image_ptr();
         const FrameMetaData meta_data = frame->get_meta_data();
-        std::size_t size = frame->get_data_size();
+        std::size_t size = frame->get_image_size();
         DataType type = meta_data.get_data_type();
         dimensions_t dims = meta_data.get_dimensions();
         
@@ -74,7 +74,7 @@ namespace FrameProcessor
         {
             buf_dims[i] = dims[i];
         }
-
+        LOG4CXX_DEBUG(logger_, "DIMS: " << buf_dims);
         int dealloc_arg = 123;
 
         /*Create a tensor from the frame data. This copies the data into the Tensor format so that
@@ -90,7 +90,10 @@ namespace FrameProcessor
         LOG4CXX_DEBUG(logger_, "INPUT SHAPE: " << input.shape());
         input = cppflow::cast(input, TF_UINT8, TF_FLOAT);
         // input = input / 255.f;
+        input = cppflow::expand_dims(input, 2);
         input = cppflow::expand_dims(input, 0);
+
+        LOG4CXX_DEBUG(logger_, "INPUT SHAPE AFTER DIM EXPANSION: " << input.shape());
         
         // cppflow::tensor input = cppflow::tensor(*(model.get()), "serving_default_input_layer");
         // input.set_data(data)
