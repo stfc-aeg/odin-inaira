@@ -6,6 +6,11 @@ import time
 
 import click
 import numpy as np
+import struct
+
+from skimage import io
+from os import listdir
+from os.path import isfile, join
 
 from odin_data.shared_buffer_manager import SharedBufferManager, SharedBufferManagerException
 from odin_data.ipc_channel import IpcChannel, IpcChannelException
@@ -94,6 +99,18 @@ class FrameProducer():
         self._next_msg_id += 1
         return self._next_msg_id
 
+    def get_dtype_enumeration(random, img_dtype):
+        list_of_dtypes = ["unknown","uint8","uint16","uint32","uint64","float"]
+        # Is theee data type contained within the odin data eenuumeeration list?
+        if img_dtype in list_of_dtypes:
+            enumerated_dtype = list_of_dtypes.index(img_dtype)
+
+        else:
+            enumerated_dtype = 0
+        
+        # Return the enumerated data type
+        return enumerated_dtype
+
     def run(self):
         """Run the frame producer main event loop."""
 
@@ -109,6 +126,25 @@ class FrameProducer():
         # to be modified once a frame header is defined and used
         num_bytes = self.config.shared_buffer_size
 
+        #Load the test images
+        testfilespath = self.config.testfile_path 
+        self.logger.debug("testfilespath = " + testfilespath)
+
+        testfiles = [f for f in listdir(testfilespath) if isfile(join(testfilespath, f))]
+        testfiles = [testfilespath + testfile for testfile in testfiles]
+
+        testimages = []
+
+        # Load in image.Convert to greyscale.
+        for testfile in testfiles:
+            tempimgdata = []
+            img = np.dot(io.imread(testfile)[...,:3], [0.2989, 0.5870, 0.1140])
+
+            #Convert to uint_8
+            img = img * 255
+            img = img.astype(np.uint8)
+            testimages.append(img)
+
         # Loop over the specified number of frames and transmit them
         self.logger.info("Sending %d frames to processor", self.config.frames)
         for frame in range(self.config.frames):
@@ -117,14 +153,29 @@ class FrameProducer():
             # TODO deal with empty queue??
             buffer = self.free_buffer_queue.get()
 
-            # Generate a simple incrementing value in a numpy array
-            # TODO replace with file input
-            vals = np.arange(frame*10, frame*10 + num_bytes, dtype=np.ubyte)
+            # Load images so that they can be sent t
+            vals = testimages[(frame%(len(testimages)))]
+            self.logger.debug(vals[0][:10])
 
-            # Copy the array values directly into the buffer
-            # TODO need to add header to buffer
+            # Split image shape from (x, y) into x and y
+            imageshape = vals.shape
+            imagewidth = imageshape[0]
+            imageheight = imageshape[1]
+            self.logger.debug("Width " + str(imageshape[0]) + "\nHeight " + str(imageshape[1]))
+
+            # What is the dtype outputting
+            self.logger.debug(vals.dtype)
+            self.logger.debug(str(vals.dtype.num))
+
+            # Create struct with these parameters for the header
+            # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
+            header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
+            self.logger.debug(header)
+
+            # Copy the image nparray directly into the buffer as bytes
+            # TODO need to add header to buffer using struct
             self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
-            self.shared_buffer_manager.write_buffer(buffer, vals.tobytes())
+            self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
 
             # Notify the processor that the frame is ready in the buffer
             self.notify_frame_ready(frame, buffer)
