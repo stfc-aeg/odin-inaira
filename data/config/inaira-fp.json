@@ -27,7 +27,9 @@
         "learning": {
             "model_path":"/aeg_sw/work/projects/inaira/casting/models/casting_prob_model/",
             "model_input_layer":"serving_default_sequential_input:0",
-            "decode_header": true
+            "decode_header": true,
+            "test_model": true,
+            "test_img_path": "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_def_0_112.jpeg"
         }
     }
 ]

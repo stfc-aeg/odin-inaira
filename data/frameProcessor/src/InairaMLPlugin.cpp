@@ -16,6 +16,8 @@ namespace FrameProcessor
     const std::string InairaMLPlugin::CONFIG_MODEL_INPUT_LAYER = "model_input_layer";
     const std::string InairaMLPlugin::CONFIG_MODEL_OUTPUT_LAYER = "model_output_layer";
     const std::string InairaMLPlugin::CONFIG_DECODE_IMG_HEADER = "decode_header";
+    const std::string InairaMLPlugin::CONFIG_TEST_MODEL = "test_model";
+    const std::string InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH = "test_img_path";
 
     /**
      * The constructor
@@ -29,6 +31,8 @@ namespace FrameProcessor
                       this->get_version_long() << " loaded.");
 
         decode_header = false;
+        classes[0] = "Bad";
+        classes[1] = "Good";
     }
 
     InairaMLPlugin::~InairaMLPlugin()
@@ -72,13 +76,15 @@ namespace FrameProcessor
                 InairaMLPlugin::CONFIG_MODEL_PATH
             );
             model_.loadModel(model_path);
-
+        }
+        if(config.has_param(InairaMLPlugin::CONFIG_TEST_MODEL) && config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL))
+        {
             //hyjack the config method real quick to trigger the model running?
 
-            LOG4CXX_DEBUG(logger_, "Testing new model with Dummy Frame(s)");
+            LOG4CXX_DEBUG(logger_, "Testing model with Dummy Frame");
             // FrameMetaData frame_meta;
-            std::string good_img_path = "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_ok_0_10.jpeg";
-            std::string bad_img_path =  "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_def_0_112.jpeg";
+            std::string img_path = config.get_param<std::string>(InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH);
+            // std::string bad_img_path =  "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_def_0_112.jpeg";
 
             Inaira::FrameHeader header;
             header.frame_number = 0;
@@ -87,8 +93,8 @@ namespace FrameProcessor
             header.frame_height = 300;
             header.frame_size = 300*300;
 
-            LOG4CXX_DEBUG(logger_, "Loading Good Image");
-            cppflow::tensor image_input = cppflow::decode_jpeg(cppflow::read_file(good_img_path), 1);
+            LOG4CXX_DEBUG(logger_, "Loading Image");
+            cppflow::tensor image_input = cppflow::decode_jpeg(cppflow::read_file(img_path), 1);
             std::vector<uint8_t> image_data = image_input.get_data<uint8_t>();
 
             const std::size_t frame_size = image_data.size();
@@ -164,11 +170,8 @@ namespace FrameProcessor
 
         std::vector<float> result = model_.runModel(frame);
         
-        std::ostringstream result_string;
-        std::copy(result.begin(),
-                    result.end(),
-                    std::ostream_iterator<float>(result_string, ","));
-        LOG4CXX_DEBUG(logger_, "Result: " << result_string.str());
+        float max = std::distance(result.begin(), max_element(result.begin(), result.end()));
+        LOG4CXX_DEBUG(logger_, "Image Result: " << classes[(int)max]);
 
         this->push(frame);
     }
