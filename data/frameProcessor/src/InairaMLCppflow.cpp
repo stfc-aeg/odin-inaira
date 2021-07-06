@@ -85,18 +85,11 @@ namespace FrameProcessor
             &InairaMLCppflow::test_deallocator, static_cast<void*>(&dealloc_arg)
         );
 
-        LOG4CXX_DEBUG(logger_, "CREATING INPUT TENSOR");
         cppflow::tensor input = cppflow::tensor(buf_tensor);
-        // LOG4CXX_DEBUG(logger_, "INPUT SHAPE: " << input.shape());
         input = cppflow::cast(input, TF_UINT8, TF_FLOAT);
         // input = input / 255.f;
         input = cppflow::expand_dims(input, 2);
         input = cppflow::expand_dims(input, 0);
-
-        // LOG4CXX_DEBUG(logger_, "INPUT SHAPE AFTER DIM EXPANSION: " << input.shape());
-        
-        // cppflow::tensor input = cppflow::tensor(*(model.get()), "serving_default_input_layer");
-        // input.set_data(data)
 
         LOG4CXX_DEBUG(logger_, "Running model on Frame Data");
         cppflow::model runable_model = *(model.get());

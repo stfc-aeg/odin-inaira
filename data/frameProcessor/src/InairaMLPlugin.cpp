@@ -149,7 +149,6 @@ namespace FrameProcessor
             metadata.set_data_type(raw_8bit);  //TODO: extract data type from header
             metadata.set_frame_number(hdr_ptr->frame_number);
             metadata.set_compression_type(no_compression);
-
             dimensions_t dims(2);
             dims[0] = hdr_ptr->frame_height;
             dims[1] = hdr_ptr->frame_width;
@@ -170,8 +169,16 @@ namespace FrameProcessor
 
         std::vector<float> result = model_.runModel(frame);
         
-        float max = std::distance(result.begin(), max_element(result.begin(), result.end()));
-        LOG4CXX_DEBUG(logger_, "Image Result: " << classes[(int)max]);
+        int max = int(std::distance(result.begin(), max_element(result.begin(), result.end())));
+        LOG4CXX_DEBUG(logger_, "Image Result: " << classes[max] << ", score: " << result[max]);
+        if(max == 0)
+        {
+            frame->meta_data().set_dataset_name("defective");
+        }
+        else
+        {
+            frame->meta_data().set_dataset_name("good");
+        }
 
         this->push(frame);
     }
