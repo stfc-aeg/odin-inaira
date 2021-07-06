@@ -137,11 +137,9 @@ class FrameProducer():
 
         # Load in image.Convert to greyscale.
         for testfile in testfiles:
-            tempimgdata = []
             img = np.dot(io.imread(testfile)[...,:3], [0.2989, 0.5870, 0.1140])
 
             #Convert to uint_8
-            img = img * 255
             img = img.astype(np.uint8)
             testimages.append(img)
 
@@ -181,7 +179,7 @@ class FrameProducer():
             self.notify_frame_ready(frame, buffer)
 
             # TODO replace a fixed sleep with a calculation based on a configured frame rate
-            time.sleep(1.0)
+            time.sleep(0.0333)
 
         # Clear the run flag and wait for the release processing thread to terminate
         self._run = False
