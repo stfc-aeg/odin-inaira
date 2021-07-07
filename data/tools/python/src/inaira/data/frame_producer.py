@@ -9,8 +9,8 @@ import numpy as np
 import struct
 
 from skimage import io
-from os import listdir
-from os.path import isfile, join
+from os import listdir, walk
+from os.path import join
 
 from odin_data.shared_buffer_manager import SharedBufferManager, SharedBufferManagerException
 from odin_data.ipc_channel import IpcChannel, IpcChannelException
@@ -130,45 +130,45 @@ class FrameProducer():
         testfilespath = self.config.testfile_path 
         self.logger.debug("testfilespath = " + testfilespath)
 
-        testfiles = [f for f in listdir(testfilespath) if isfile(join(testfilespath, f))]
-        testfiles = [testfilespath + testfile for testfile in testfiles]
+        totalimages = 0
 
-        testimages = []
-
-        # Load in image.Convert to greyscale.
-        for testfile in testfiles:
-            img = np.dot(io.imread(testfile)[...,:3], [0.2989, 0.5870, 0.1140])
-
-            #Convert to uint_8
-            img = img.astype(np.uint8)
-            testimages.append(img)
+        # Number of files in directory
+        for files in walk(testfilespath):
+            for Files in files:
+                totalimages += 1
 
         # Loop over the specified number of frames and transmit them
-        self.logger.info("Sending %d frames to processor", self.config.frames)
+        self.logger.info("Sending %d frames to processor\n", self.config.frames)
         for frame in range(self.config.frames):
+
+            self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
+
+            # Load the image base on the frame number
+            testimage = listdir(testfilespath)[frame%totalimages]
+            vals = np.dot(io.imread(join(testfilespath,testimage))[...,:3], [0.2989, 0.5870, 0.1140])
+            vals = vals.astype(np.uint8)
+
+            # Debugging of image loading
+            self.logger.debug("The filename is " + testimage)
+            self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
 
             # Pop the first free buffer off the queue
             # TODO deal with empty queue??
             buffer = self.free_buffer_queue.get()
 
-            # Load images so that they can be sent t
-            vals = testimages[(frame%(len(testimages)))]
-            self.logger.debug(vals[0][:10])
-
             # Split image shape from (x, y) into x and y
             imageshape = vals.shape
             imagewidth = imageshape[0]
             imageheight = imageshape[1]
-            self.logger.debug("Width " + str(imageshape[0]) + "\nHeight " + str(imageshape[1]))
+            self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
 
             # What is the dtype outputting
-            self.logger.debug(vals.dtype)
-            self.logger.debug(str(vals.dtype.num))
+            self.logger.debug("Data Type: " + str(vals.dtype))
+            self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
 
             # Create struct with these parameters for the header
             # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
             header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
-            self.logger.debug(header)
 
             # Copy the image nparray directly into the buffer as bytes
             # TODO need to add header to buffer using struct
@@ -178,8 +178,10 @@ class FrameProducer():
             # Notify the processor that the frame is ready in the buffer
             self.notify_frame_ready(frame, buffer)
 
+            self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+
             # TODO replace a fixed sleep with a calculation based on a configured frame rate
-            time.sleep(0.0333)
+            time.sleep(1/self.config.frames_per_second)
 
         # Clear the run flag and wait for the release processing thread to terminate
         self._run = False
@@ -216,7 +218,7 @@ class FrameProducer():
                     self.free_buffer_queue.put(buffer_id)
 
                     self.logger.debug(
-                        "Got frame release notification for frame %d in buffer %d",
+                        "Got frame release notification for frame %d in buffer %d \n",
                         frame, buffer_id
                     )
 

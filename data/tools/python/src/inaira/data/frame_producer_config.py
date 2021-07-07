@@ -15,6 +15,7 @@ class FrameProducerConfig:
     release_endpoint = "tcp://127.0.0.1:5002"
     frames = 10
     testfile_path = (os.getcwd().split("tools"))[0] + "/Test-Images/"
+    frames_per_second = 30
 
     config_file: InitVar[str] = None
 

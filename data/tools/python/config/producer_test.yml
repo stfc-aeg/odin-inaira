@@ -8,5 +8,6 @@
   boost_mmap_mode: false
   ready_endpoint: tcp://127.0.0.1:5001
   release_endpoint: tcp://127.0.0.1:5002
-  frames: 20
-  testfiles_path: '/u/tmv87152/develop/projects/inaira/odin-inaira/data/Test-Images/'
+  frames: 1000
+  testfile_path: '/aeg_sw/work/projects/inaira/odin-inaira/data/Test-Images/'
+  frames_per_second: 30
