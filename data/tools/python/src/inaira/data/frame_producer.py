@@ -139,49 +139,110 @@ class FrameProducer():
 
         # Loop over the specified number of frames and transmit them
         self.logger.info("Sending %d frames to processor\n", self.config.frames)
-        for frame in range(self.config.frames):
 
-            self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
+        sendframes = True
+        frame = 0
 
-            # Load the image base on the frame number
-            testimage = listdir(testfilespath)[frame%totalimages]
-            vals = np.dot(io.imread(join(testfilespath,testimage))[...,:3], [0.2989, 0.5870, 0.1140])
-            vals = vals.astype(np.uint8)
+        while sendframes:
 
-            # Debugging of image loading
-            self.logger.debug("The filename is " + testimage)
-            self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
+            try:
+                # Frame producer code here 
+                self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
 
-            # Pop the first free buffer off the queue
-            # TODO deal with empty queue??
-            buffer = self.free_buffer_queue.get()
+                # Load the image base on the frame number
+                testimage = listdir(testfilespath)[frame%totalimages]
+                vals = io.imread(join(testfilespath,testimage), as_gray= True)
+                vals = vals.astype(np.uint8)
 
-            # Split image shape from (x, y) into x and y
-            imageshape = vals.shape
-            imagewidth = imageshape[0]
-            imageheight = imageshape[1]
-            self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
+                # Debugging of image loading
+                self.logger.debug("The filename is " + testimage)
+                self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
 
-            # What is the dtype outputting
-            self.logger.debug("Data Type: " + str(vals.dtype))
-            self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
+                # Pop the first free buffer off the queue
+                # TODO deal with empty queue??
+                buffer = self.free_buffer_queue.get()
 
-            # Create struct with these parameters for the header
-            # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
-            header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
+                # Split image shape from (x, y) into x and y
+                imageshape = vals.shape
+                imagewidth = imageshape[0]
+                imageheight = imageshape[1]
+                self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
 
-            # Copy the image nparray directly into the buffer as bytes
-            # TODO need to add header to buffer using struct
-            self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
-            self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
+                # What is the dtype outputting
+                self.logger.debug("Data Type: " + str(vals.dtype))
+                self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
 
-            # Notify the processor that the frame is ready in the buffer
-            self.notify_frame_ready(frame, buffer)
+                # Create struct with these parameters for the header
+                # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
+                header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
 
-            self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+                # Copy the image nparray directly into the buffer as bytes
+                self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
+                self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
 
-            # TODO replace a fixed sleep with a calculation based on a configured frame rate
-            time.sleep(1/self.config.frames_per_second)
+                # Notify the processor that the frame is ready in the buffer
+                self.notify_frame_ready(frame, buffer)
+
+                self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+
+                # Sent frames at a set frame rate using config
+                time.sleep(1/self.config.frames_per_second)
+
+                # Next frame
+                frame += 1
+
+                # Are all frames sent?
+                if (frame == (self.config.frames)):
+                    sendframes = False
+
+            except KeyboardInterrupt:
+                sendframes = False
+            
+
+
+
+        # for frame in range(self.config.frames):
+
+            # self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
+
+            # # Load the image base on the frame number
+            # testimage = listdir(testfilespath)[frame%totalimages]
+            # vals = io.imread(join(testfilespath,testimage), as_gray= True)
+            # vals = vals.astype(np.uint8)
+
+            # # Debugging of image loading
+            # self.logger.debug("The filename is " + testimage)
+            # self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
+
+            # # Pop the first free buffer off the queue
+            # # TODO deal with empty queue??
+            # buffer = self.free_buffer_queue.get()
+
+            # # Split image shape from (x, y) into x and y
+            # imageshape = vals.shape
+            # imagewidth = imageshape[0]
+            # imageheight = imageshape[1]
+            # self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
+
+            # # What is the dtype outputting
+            # self.logger.debug("Data Type: " + str(vals.dtype))
+            # self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
+
+            # # Create struct with these parameters for the header
+            # # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
+            # header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
+
+            # # Copy the image nparray directly into the buffer as bytes
+            # self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
+            # self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
+
+            # # Notify the processor that the frame is ready in the buffer
+            # self.notify_frame_ready(frame, buffer)
+
+            # self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+
+            # # Sent frames at a set frame rate using config
+            # time.sleep(1/self.config.frames_per_second)
 
         # Clear the run flag and wait for the release processing thread to terminate
         self._run = False
