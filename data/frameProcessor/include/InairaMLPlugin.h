@@ -22,6 +22,8 @@ namespace FrameProcessor
 
         private:
             void process_frame(boost::shared_ptr<Frame> frame);
+            void decodeHeader(boost::shared_ptr<Frame> frame);
+            void sendResults(uint32_t frame_number, std::vector<float> results);
 
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
@@ -29,12 +31,16 @@ namespace FrameProcessor
             static const std::string CONFIG_DECODE_IMG_HEADER;
             static const std::string CONFIG_TEST_MODEL;
             static const std::string CONFIG_MODEL_TEST_IMG_PATH;
+            static const std::string CONFIG_RESULT_DEST;
 
             std::string model_path;
             bool decode_header;
 
             InairaMLCppflow model_;
             std::string classes[2];
+
+            std::string data_socket_addr_;
+            OdinData::IpcChannel publish_socket_;
     };
 
     /**

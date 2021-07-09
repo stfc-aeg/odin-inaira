@@ -17,9 +17,43 @@
     },
     {
         "plugin": {
+            "load": {
+                "index":"liveview",
+                "name":"LiveViewPlugin",
+                "library":"./lib/libLiveViewPlugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"hdf",
+                "name":"FileWriterPlugin",
+                "library":"./lib/libHdf5Plugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
             "connect": {
                 "index":"learning",
                 "connection":"frame_receiver"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"liveview",
+                "connection":"learning"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"hdf",
+                "connection":"learning"
             }
         }
     },
@@ -31,5 +65,50 @@
             "test_model": false,
             "test_img_path": "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_ok_0_10.jpeg"
         }
+    },
+    {
+        "liveview": {
+            "live_view_socket_addr":"tcp://127.0.0.1:5020"
+        }
+    },
+    {
+        "hdf":
+        {
+            "dataset": "good"
+        }
+    },
+    {
+        "hdf":
+        {
+            "dataset": "defective"
+        }
+    },
+    {
+        "hdf":
+        {
+            "dataset":
+            {
+                "good":
+                {
+                    "datatype":"uint8",
+                    "dims":[300, 300],
+                    "compression":"none"
+                },
+                "defective":
+                {
+                    "datatype":"uint8",
+                    "dims":[300, 300],
+                    "compression":"none"
+                }
+            },
+            "file":
+            {
+                "path":""
+            },
+            "frames":20,
+            "acquisition_id":"test_1",
+            "write":true
+        }   
     }
+
 ]

@@ -18,11 +18,14 @@ namespace FrameProcessor
     const std::string InairaMLPlugin::CONFIG_DECODE_IMG_HEADER = "decode_header";
     const std::string InairaMLPlugin::CONFIG_TEST_MODEL = "test_model";
     const std::string InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH = "test_img_path";
+    const std::string InairaMLPlugin::CONFIG_RESULT_DEST = "result_socket_addr";
 
     /**
      * The constructor
      */
-    InairaMLPlugin::InairaMLPlugin()
+    InairaMLPlugin::InairaMLPlugin() :
+        publish_socket_(ZMQ_PUB),
+        decode_header(false)
     {
         //Setup logging
         logger_ = Logger::getLogger("FP.InairaMLPlugin");
@@ -30,7 +33,6 @@ namespace FrameProcessor
         LOG4CXX_TRACE(logger_, "InairaMLPlugin version " <<
                       this->get_version_long() << " loaded.");
 
-        decode_header = false;
         classes[0] = "Bad";
         classes[1] = "Good";
     }
@@ -141,30 +143,7 @@ namespace FrameProcessor
         LOG4CXX_DEBUG(logger_, "Process Frame Called");
         if(decode_header)
         {
-            Inaira::FrameHeader* hdr_ptr = static_cast<Inaira::FrameHeader*>(frame->get_data_ptr());
-
-            FrameMetaData metadata;
-
-            metadata.set_dataset_name("inaira");
-            metadata.set_data_type(raw_8bit);  //TODO: extract data type from header
-            metadata.set_frame_number(hdr_ptr->frame_number);
-            metadata.set_compression_type(no_compression);
-            dimensions_t dims(2);
-            dims[0] = hdr_ptr->frame_height;
-            dims[1] = hdr_ptr->frame_width;
-            metadata.set_dimensions(dims);
-
-            const void* data_ptr = static_cast<const void*>(
-                static_cast<const char*>(frame->get_data_ptr()) + sizeof(Inaira::FrameHeader)
-            );
-            // boost::shared_ptr<Frame> new_frame;
-            // new_frame = boost::shared_ptr<Frame>(new DataBlockFrame(metadata, hdr_ptr->frame_size));
-            // memcpy(new_frame->get_data_ptr(), data_ptr, hdr_ptr->frame_size);
-
-            // frame = new_frame;
-            frame->set_meta_data(metadata);
-            frame->set_image_offset(sizeof(Inaira::FrameHeader));
-            frame->set_image_size(hdr_ptr->frame_height*hdr_ptr->frame_width * sizeof(uint8_t));
+            decodeHeader(frame);
         }
 
         std::vector<float> result = model_.runModel(frame);
@@ -172,14 +151,67 @@ namespace FrameProcessor
         int max = int(std::distance(result.begin(), max_element(result.begin(), result.end())));
         LOG4CXX_DEBUG(logger_, "Image Result: " << classes[max] << ", score: " << result[max]);
         if(max == 0)
-        {
             frame->meta_data().set_dataset_name("defective");
-        }
         else
-        {
             frame->meta_data().set_dataset_name("good");
-        }
 
+        sendResults(frame->get_frame_number(), result);
         this->push(frame);
+    }
+
+    void InairaMLPlugin::decodeHeader(boost::shared_ptr<Frame> frame)
+    {
+        LOG4CXX_DEBUG(logger_, "Decoding Frame Header");
+        
+        Inaira::FrameHeader* hdr_ptr = static_cast<Inaira::FrameHeader*>(frame->get_data_ptr());
+
+            FrameMetaData metadata;
+
+            metadata.set_dataset_name("inaira");
+            metadata.set_data_type((DataType)hdr_ptr->frame_data_type);
+            metadata.set_frame_number(hdr_ptr->frame_number);
+            metadata.set_compression_type(no_compression);
+            dimensions_t dims(2);
+            dims[0] = hdr_ptr->frame_height;
+            dims[1] = hdr_ptr->frame_width;
+            metadata.set_dimensions(dims);
+
+            frame->set_meta_data(metadata);
+            frame->set_image_offset(sizeof(Inaira::FrameHeader));
+            frame->set_image_size(hdr_ptr->frame_height*hdr_ptr->frame_width * sizeof(uint8_t));
+    }
+
+    void InairaMLPlugin::sendResults(uint32_t frame_number, std::vector<float> results)
+    {
+        //something describing frame? probs just frame number
+        LOG4CXX_DEBUG(logger_, "Creating Json structure");
+        rapidjson::Document doc;
+        doc.SetObject();
+
+        rapidjson::Value key("frame_number", doc.GetAllocator());
+        rapidjson::Value frame_num(frame_number);
+        doc.AddMember(key, frame_num, doc.GetAllocator());
+        //do a loop for the values in the result vector
+        
+        LOG4CXX_DEBUG(logger_, "Adding Array to json");
+        
+        rapidjson::Value keyResults("result", doc.GetAllocator());
+        rapidjson::Value valResults(rapidjson::kArrayType);
+        for(int i = 0; i < results.size(); i++)
+        {
+            rapidjson::Value value(results[i]);
+            valResults.PushBack(value, doc.GetAllocator());
+        }
+        doc.AddMember(keyResults, valResults, doc.GetAllocator());
+
+        rapidjson::StringBuffer buffer;
+        buffer.Clear();
+        rapidjson::Writer<rapidjson::StringBuffer, rapidjson::UTF8<> > writer(buffer);
+        doc.Accept(writer);
+        //print the json out real quick for debug purposes
+        LOG4CXX_DEBUG(logger_, "Json:" << buffer.GetString());
+
+        publish_socket_.send(buffer.GetString());
+
     }
 }
