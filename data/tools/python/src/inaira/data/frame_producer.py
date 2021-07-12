@@ -99,6 +99,7 @@ class FrameProducer():
         self._next_msg_id += 1
         return self._next_msg_id
 
+    # Enumerate the data type so it can be sent in frame header
     def get_dtype_enumeration(random, img_dtype):
         list_of_dtypes = ["unknown","uint8","uint16","uint32","uint64","float"]
         # Is theee data type contained within the odin data eenuumeeration list?
@@ -110,6 +111,11 @@ class FrameProducer():
         
         # Return the enumerated data type
         return enumerated_dtype
+
+    # Convert image from rgb to gray
+    def rgb2gray(random, img):
+        #Convert from rgb to gray
+        return np.dot(img[...,:3],[0.2989, 0.5870, 0.1140])
 
     def run(self):
         """Run the frame producer main event loop."""
@@ -149,10 +155,19 @@ class FrameProducer():
                 # Frame producer code here 
                 self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
 
-                # Load the image base on the frame number
+                # Set image path based on frame number
                 testimage = listdir(testfilespath)[frame%totalimages]
-                vals = io.imread(join(testfilespath,testimage), as_gray= True)
-                vals = vals.astype(np.uint8)
+
+                # Load image
+                vals = io.imread(join(testfilespath,testimage))
+
+                # Is the image RGB or Grayscale?
+                if (len(vals.shape) >= 3):
+                    # Convert to Grayscale
+                    vals = self.rgb2gray(vals)
+                    
+                    # Correct data type
+                    vals = vals.astype(np.uint8)
 
                 # Debugging of image loading
                 self.logger.debug("The filename is " + testimage)
