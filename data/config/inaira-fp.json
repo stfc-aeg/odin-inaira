@@ -63,7 +63,7 @@
             "model_input_layer":"serving_default_sequential_input:0",
             "decode_header": true,
             "test_model": false,
-            "test_img_path": "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_ok_0_10.jpeg"
+            "test_img_path": "include/casting_model/cast_ok_0_10.jpeg"
         }
     },
     {
