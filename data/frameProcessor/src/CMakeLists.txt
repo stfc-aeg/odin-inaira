@@ -4,7 +4,7 @@ ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 
 include_directories(${FRAMEPROCESSOR_DIR}/include ${ODINDATA_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS} ${LOG4CXX_INCLUDE_DIRS}/.. ${ZEROMQ_INCLUDE_DIRS}
-	~/libtensorflow2)
+	${CPPFLOW_INCLUDE_DIR} ~/libtensorflow2)
 
 # find_library(TENSORFLOW_LIB tensorflow HINT ~/libtensorflow2/lib)
 message(STATUS "Tensorflow ${TENSORFLOW_LIB}")

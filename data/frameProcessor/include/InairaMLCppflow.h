@@ -3,7 +3,7 @@
 #define INCLUDE_InairaMLCPPFLOW_H_
 
 // #include <InairaMLFramework.h>
-#include "cppflow/cppflow.h"
+#include <cppflow.h>
 #include <tensorflow/c/tf_tensor.h>
 
 #include <log4cxx/logger.h>

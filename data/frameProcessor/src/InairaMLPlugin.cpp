@@ -8,7 +8,7 @@ get result from model (store in... */
 
 #include <InairaMLPlugin.h>
 #include "version.h"
-#include "cppflow/cppflow.h"  /*TODO: Remove when ready*/
+#include <cppflow.h>  /*TODO: Remove when ready*/
 
 namespace FrameProcessor
 {
@@ -84,12 +84,10 @@ namespace FrameProcessor
         }
         if(config.has_param(InairaMLPlugin::CONFIG_TEST_MODEL) && config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL))
         {
-            //hyjack the config method real quick to trigger the model running?
-
+  
             LOG4CXX_DEBUG(logger_, "Testing model with Dummy Frame");
             // FrameMetaData frame_meta;
             std::string img_path = config.get_param<std::string>(InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH);
-            // std::string bad_img_path =  "/aeg_sw/work/projects/inaira/casting/cppflow/casting_model/cast_def_0_112.jpeg";
 
             Inaira::FrameHeader header;
             header.frame_number = 0;
