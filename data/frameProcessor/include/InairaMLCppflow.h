@@ -20,6 +20,9 @@ using namespace log4cxx::helpers;
 
 namespace FrameProcessor
 {
+    /*List of Tensorflow Datatypes, mapped to the Odin Data Datatype enum*/
+    const TF_DataType TF_DATA_TYPES[] = {TF_UINT8, TF_UINT8, TF_UINT16, TF_UINT32, TF_UINT64, TF_FLOAT};
+
     class InairaMLCppflow 
     {
         public:

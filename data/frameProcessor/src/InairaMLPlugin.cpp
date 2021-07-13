@@ -25,7 +25,10 @@ namespace FrameProcessor
      */
     InairaMLPlugin::InairaMLPlugin() :
         publish_socket_(ZMQ_PUB),
-        decode_header(false)
+        decode_header(false),
+        avg_process_time(0),
+        total_process_time(0),
+        num_processed(0)
     {
         //Setup logging
         logger_ = Logger::getLogger("FP.InairaMLPlugin");
@@ -131,6 +134,11 @@ namespace FrameProcessor
         //return the status of the plugin
         LOG4CXX_DEBUG(logger_, "Status requested for InairaMLPlugin");
 
+        std::string base_str = get_name() + "/";
+        status.set_param(base_str + "avg_process_time", avg_process_time);
+        status.set_param(base_str + "num_processed", num_processed);
+
+
     }
 
     bool InairaMLPlugin::reset_statistics(void)
@@ -141,13 +149,24 @@ namespace FrameProcessor
     void InairaMLPlugin::process_frame(boost::shared_ptr<Frame> frame)
     {
         LOG4CXX_DEBUG(logger_, "Process Frame Called");
+        boost::posix_time::ptime then = boost::posix_time::microsec_clock::local_time();
         if(decode_header)
         {
             decodeHeader(frame);
         }
 
         std::vector<float> result = model_.runModel(frame);
+        boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
+        uint32_t frame_process_time = (now - then).total_milliseconds();
         
+        
+        total_process_time += frame_process_time;
+        num_processed += 1;
+        avg_process_time = total_process_time / num_processed;
+
+        LOG4CXX_DEBUG(logger_, "Frame Processing took " << frame_process_time <<"ms");
+        LOG4CXX_DEBUG(logger_, "Average Processing time over " << num_processed << "Frames: " << avg_process_time);
+
         int max = int(std::distance(result.begin(), max_element(result.begin(), result.end())));
         LOG4CXX_DEBUG(logger_, "Image Result: " << classes[max] << ", score: " << result[max]);
         if(max == 0)
@@ -155,7 +174,7 @@ namespace FrameProcessor
         else
             frame->meta_data().set_dataset_name("good");
 
-        sendResults(frame->get_frame_number(), result);
+        sendResults(frame->get_frame_number(), frame_process_time, result);
         this->push(frame);
     }
 
@@ -181,16 +200,20 @@ namespace FrameProcessor
             frame->set_image_size(hdr_ptr->frame_height*hdr_ptr->frame_width * sizeof(uint8_t));
     }
 
-    void InairaMLPlugin::sendResults(uint32_t frame_number, std::vector<float> results)
+    void InairaMLPlugin::sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results)
     {
         //something describing frame? probs just frame number
         LOG4CXX_DEBUG(logger_, "Creating Json structure");
         rapidjson::Document doc;
         doc.SetObject();
 
-        rapidjson::Value key("frame_number", doc.GetAllocator());
+        rapidjson::Value key_num("frame_number", doc.GetAllocator());
         rapidjson::Value frame_num(frame_number);
-        doc.AddMember(key, frame_num, doc.GetAllocator());
+        doc.AddMember(key_num, frame_num, doc.GetAllocator());
+
+        rapidjson::Value key_time("process_time", doc.GetAllocator());
+        rapidjson::Value frame_time(process_time);
+        doc.AddMember(key_time, frame_time, doc.GetAllocator());
         //do a loop for the values in the result vector
         
         LOG4CXX_DEBUG(logger_, "Adding Array to json");

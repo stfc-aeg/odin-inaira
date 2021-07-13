@@ -81,13 +81,12 @@ namespace FrameProcessor
           it can be used by the model and CPPFlow methods
         */
         TF_Tensor* buf_tensor = TF_NewTensor(
-            TF_UINT8, buf_dims, dims.size(), const_cast<void*>(frame_data), size,
+            TF_DATA_TYPES[type], buf_dims, dims.size(), const_cast<void*>(frame_data), size,
             &InairaMLCppflow::test_deallocator, static_cast<void*>(&dealloc_arg)
         );
 
         cppflow::tensor input = cppflow::tensor(buf_tensor);
-        input = cppflow::cast(input, TF_UINT8, TF_FLOAT);
-        // input = input / 255.f;
+        input = cppflow::cast(input, TF_DATA_TYPES[type], TF_FLOAT);
         input = cppflow::expand_dims(input, 2);
         input = cppflow::expand_dims(input, 0);
 
@@ -95,10 +94,6 @@ namespace FrameProcessor
         cppflow::model runable_model = *(model.get());
         cppflow::tensor result = runable_model({{input_layer_name, input}},
                                                {output_layer_name})[0];
-
-        // LOG4CXX_DEBUG(logger_, result);
-
-        // LOG4CXX_DEBUG(logger_, "Max Result: " << cppflow::arg_max(result, 1));
         
         LOG4CXX_DEBUG(logger_, "Returning Model Results");
         std::vector<float> return_values = result.get_data<float>();

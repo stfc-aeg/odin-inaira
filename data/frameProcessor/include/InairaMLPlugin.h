@@ -23,7 +23,7 @@ namespace FrameProcessor
         private:
             void process_frame(boost::shared_ptr<Frame> frame);
             void decodeHeader(boost::shared_ptr<Frame> frame);
-            void sendResults(uint32_t frame_number, std::vector<float> results);
+            void sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results);
 
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
@@ -41,6 +41,10 @@ namespace FrameProcessor
 
             std::string data_socket_addr_;
             OdinData::IpcChannel publish_socket_;
+
+            int32_t avg_process_time;
+            int32_t total_process_time;
+            int32_t num_processed;
     };
 
     /**
