@@ -59,7 +59,7 @@
     },
     {
         "learning": {
-            "model_path":"/aeg_sw/work/projects/inaira/casting/models/casting_prob_model/",
+            "model_path":"include/models/casting_prob_model/",
             "model_input_layer":"serving_default_sequential_input:0",
             "decode_header": true,
             "test_model": false,

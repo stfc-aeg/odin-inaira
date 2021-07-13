@@ -44,5 +44,4 @@ namespace FrameProcessor
     };
 }
 
-
 #endif /*INCLUDE_InairaMLCPPFLOW_H_*/

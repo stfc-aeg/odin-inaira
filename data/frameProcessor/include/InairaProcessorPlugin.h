@@ -40,5 +40,4 @@ namespace FrameProcessor
     };
 }
 
-
 #endif /*INCLUDE_INAIRAPROCESSORPLUGIN_H_*/

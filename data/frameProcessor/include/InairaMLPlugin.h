@@ -54,8 +54,4 @@ namespace FrameProcessor
     REGISTER(FrameProcessorPlugin, InairaMLPlugin, "InairaMLPlugin");
 }
 
-
-
-
-
 #endif /*INCLUDE_InairaMLPLUGIN_H_*/
