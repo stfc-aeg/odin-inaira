@@ -130,5 +130,8 @@ dmypy.json
 .pyre/
 
 
+# VSCode metadata
+.vscode/
+
 # Cppflow Stuff
 data/frameProcessor/include/cppflow

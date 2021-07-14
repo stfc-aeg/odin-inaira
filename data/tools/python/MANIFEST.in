@@ -1,0 +1,2 @@
+include versioneer.py
+include src/inaira/data/_version.py
