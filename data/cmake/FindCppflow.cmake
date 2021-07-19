@@ -38,9 +38,9 @@ endif()
 # Find header files
 if(CPPFLOW_ROOT_DIR)
     find_path(
-            CPPFLOW_INCLUDE_DIR cppflow.h
-            PATHS ${CPPFLOW_ROOT_DIR}
-            NO_DEFAULT_PATH
+        CPPFLOW_INCLUDE_DIR cppflow.h
+        PATHS ${CPPFLOW_ROOT_DIR}/include/cppflow
+        NO_DEFAULT_PATH
     )
 else()
     find_path(CPPFLOW_INCLUDE_DIR cppflow.h)
