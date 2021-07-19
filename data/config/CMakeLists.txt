@@ -3,8 +3,9 @@ file(GLOB CONFIG_FILES
   *.xml
   *.json
   )
-  
-message(STATUS "Config files: ${CONFIG_FILES}")
+
+message("\nSearching for configuration files")
+message(STATUS "Config files found: ${CONFIG_FILES}")
 
 set(CONFIG_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/config/data")
 message(STATUS "Config install dir : ${CONFIG_INSTALL_DIR}")
