@@ -9,3 +9,9 @@ include_directories(${FRAMERECEIVER_DIR}/include ${ODINDATA_INCLUDE_DIRS}
 add_library(InairaFrameDecoder SHARED InairaFrameDecoder.cpp InairaFrameDecoderLib.cpp)
 
 install(TARGETS InairaFrameDecoder LIBRARY DESTINATION lib)
+
+# Add library for PCO CameraLink Decoder
+add_library(PcoCameraLinkFrameDecoder SHARED
+	PcoCameraLinkFrameDecoder.cpp PcoCameraLinkFrameDecoderLib.cpp)
+
+install(TARGETS PcoCameraLinkFrameDecoder LIBRARY DESTINATION lib)
