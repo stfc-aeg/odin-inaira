@@ -19,12 +19,14 @@ namespace FrameProcessor
     const std::string InairaMLPlugin::CONFIG_TEST_MODEL = "test_model";
     const std::string InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH = "test_img_path";
     const std::string InairaMLPlugin::CONFIG_RESULT_DEST = "result_socket_addr";
+    const std::string InairaMLPlugin::CONFIG_SEND_RESULTS = "send_results";
 
     /**
      * The constructor
      */
     InairaMLPlugin::InairaMLPlugin() :
         publish_socket_(ZMQ_PUB),
+        is_bound_(false),
         decode_header(false),
         avg_process_time(0),
         total_process_time(0),
@@ -74,6 +76,14 @@ namespace FrameProcessor
             bool config_decode_header = config.get_param<bool>(InairaMLPlugin::CONFIG_DECODE_IMG_HEADER);
             decode_header = config_decode_header;
         }
+        if(config.has_param(InairaMLPlugin::CONFIG_SEND_RESULTS))
+        {
+            send_results_ = config.get_param<bool>(InairaMLPlugin::CONFIG_SEND_RESULTS);
+        }
+        if(config.has_param(InairaMLPlugin::CONFIG_RESULT_DEST))
+        {
+            setSocketAddr(config.get_param<std::string>(InairaMLPlugin::CONFIG_RESULT_DEST));
+        }
         //send configuration to the plugin
         if(config.has_param(InairaMLPlugin::CONFIG_MODEL_PATH))
         {
@@ -82,7 +92,7 @@ namespace FrameProcessor
             );
             model_.loadModel(model_path);
         }
-        if(config.has_param(InairaMLPlugin::CONFIG_TEST_MODEL) && config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL))
+        if(config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL, false))
         {
   
             LOG4CXX_DEBUG(logger_, "Testing model with Dummy Frame");
@@ -141,6 +151,8 @@ namespace FrameProcessor
 
     bool InairaMLPlugin::reset_statistics(void)
     {
+        total_process_time = 0;
+        num_processed = 0;
         return true;
     }
 
@@ -189,8 +201,8 @@ namespace FrameProcessor
             metadata.set_frame_number(hdr_ptr->frame_number);
             metadata.set_compression_type(no_compression);
             dimensions_t dims(2);
-            dims[0] = hdr_ptr->frame_height;
-            dims[1] = hdr_ptr->frame_width;
+            dims[1] = hdr_ptr->frame_height;
+            dims[0] = hdr_ptr->frame_width;
             metadata.set_dimensions(dims);
 
             frame->set_meta_data(metadata);
@@ -234,5 +246,33 @@ namespace FrameProcessor
 
         publish_socket_.send(buffer.GetString());
 
+    }
+
+    void InairaMLPlugin::setSocketAddr(std::string value)
+    {
+        if(publish_socket_.has_bound_endpoint(value))
+        {
+            LOG4CXX_WARN(logger_, "Socket already bound to " << value <<". Ignoring");
+            return;
+        }
+
+        try 
+        {
+            uint32_t linger = 0;
+            publish_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            publish_socket_.unbind(data_socket_addr_.c_str());
+
+            is_bound_ = false;
+            data_socket_addr_ = value;
+
+            LOG4CXX_INFO(logger_, "Setting Result Socket Address to " << data_socket_addr_);
+            publish_socket_.bind(data_socket_addr_);
+            is_bound_ = true;
+            LOG4CXX_INFO(logger_, "Socket Bound Successfully.");
+        }
+        catch(zmq::error_t& e)
+        {
+            LOG4CXX_ERROR(logger_, "Error binding socket to address " << value << " Error Code: " << e.num());
+        }
     }
 }

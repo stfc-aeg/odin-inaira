@@ -1,19 +1,18 @@
 import logging
 
+
 import click
 import sys
+import yaml
+import os
+
 import tensorflow as tf
 
 
 class ModelCreator():
 
-    def __init__(self):
-        self.color_mode = "grayscale"
-        self.number_colour_layers = 1
-        self.image_size = (1990, 1990)
-        self.image_shape = self.image_size + (self.number_colour_layers,)
-        self.num_classes = 2
-
+    def __init__(self, config_file):
+        self.config = ModelCreatorConfig(config_file)
 
         self.model = None
 
@@ -33,17 +32,17 @@ class ModelCreator():
         self.logger.debug("Creating Model")
         preprocessing_layers = [
             tf.keras.layers.experimental.preprocessing.Rescaling(1./255,
-            input_shape=self.image_shape)
+            input_shape=self.config.image_shape)
         ]
         self.logger.debug("Preprocessing Layers completed")
         
-        # core_layers = self.conv_2d_pooling_layers(16, self.number_colour_layers)
+        # core_layers = self.conv_2d_pooling_layers(16, self.config.number_colour_layers)
         # self.logger.debug("Core Layers Complete")
 
         dense_layers = [
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(self.num_classes)
+            tf.keras.layers.Dense(self.config.num_classes)
         ]
         self.logger.debug("Dense Layers Completed")
         
@@ -55,12 +54,16 @@ class ModelCreator():
         )
         self.logger.debug("Model Created")
 
+        if self.config.include_training:
+            self.train_model()
+
     def train_model(self):
+        self.logger.debug("Training Model (not currently implemented)")
         pass  # not currently implemented
 
     def save_model(self):
         self.logger.debug("Saving Model")
-        self.model.save("tf-model")
+        self.model.save(self.config.model_save_location)
 
     def conv_2d_pooling_layers(self, filters, number_colour_layers):
         return [
@@ -73,11 +76,35 @@ class ModelCreator():
             tf.keras.layers.MaxPooling2D()
         ]
 
-# @click.command()
-# @click.option('--config', help="The path to the required yml config file.")
-def main():
-    print("IT RUNS")
-    model = ModelCreator()
+class ModelCreatorConfig():
+
+    def __init__(self, config_file):
+
+        self.number_colour_layers = 1
+        self.image_width = 2000
+        self.image_height = 1800
+        self.image_size = (self.image_width, self.image_height)
+        self.num_classes = 2
+        self.model_save_location = "tf-model"
+
+        self.include_training = False
+
+        if config_file is not None:
+            self.parse_file(config_file)
+
+    def parse_file(self, file_name):
+        with open(file_name) as config_file:
+            config = yaml.safe_load(config_file)
+            for(key, value) in config.items():
+                setattr(self, key, value)
+        self.image_size = (self.image_width, self.image_height)
+        self.image_shape = self.image_size + (self.number_colour_layers,)
+
+
+@click.command()
+@click.option('--config', help="The path to the required yml config file.")
+def main(config):
+    model = ModelCreator(config)
     model.create_model()
     model.save_model()
 
