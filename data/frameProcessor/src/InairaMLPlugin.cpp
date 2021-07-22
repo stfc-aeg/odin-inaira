@@ -92,39 +92,6 @@ namespace FrameProcessor
             );
             model_.loadModel(model_path);
         }
-        if(config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL, false))
-        {
-  
-            LOG4CXX_DEBUG(logger_, "Testing model with Dummy Frame");
-            // FrameMetaData frame_meta;
-            std::string img_path = config.get_param<std::string>(InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH);
-
-            Inaira::FrameHeader header;
-            header.frame_number = 0;
-            header.frame_data_type = raw_8bit;
-            header.frame_width = 300;
-            header.frame_height = 300;
-            header.frame_size = 300*300;
-
-            LOG4CXX_DEBUG(logger_, "Loading Image");
-            cppflow::tensor image_input = cppflow::decode_jpeg(cppflow::read_file(img_path), 1);
-            std::vector<uint8_t> image_data = image_input.get_data<uint8_t>();
-
-            const std::size_t frame_size = image_data.size();
-
-            boost::shared_ptr<Frame> test_frame;
-            FrameMetaData empty_meta;
-            test_frame = boost::shared_ptr<Frame>(new DataBlockFrame(empty_meta, frame_size  + sizeof(header)));
-
-            void* data_ptr = static_cast<void*>(
-                static_cast<char*>(test_frame->get_data_ptr()) + sizeof(Inaira::FrameHeader)
-            );
-            memcpy(test_frame->get_data_ptr(), &header, sizeof(header));
-            memcpy(data_ptr, image_data.data(), frame_size);
-            
-            process_frame(test_frame);
-        }
-
     }
 
     void InairaMLPlugin::requestConfiguration(OdinData::IpcMessage& reply)

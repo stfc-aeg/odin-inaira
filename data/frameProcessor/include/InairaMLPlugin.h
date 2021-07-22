@@ -31,8 +31,6 @@ namespace FrameProcessor
             static const std::string CONFIG_MODEL_INPUT_LAYER;
             static const std::string CONFIG_MODEL_OUTPUT_LAYER;
             static const std::string CONFIG_DECODE_IMG_HEADER;
-            static const std::string CONFIG_TEST_MODEL;
-            static const std::string CONFIG_MODEL_TEST_IMG_PATH;
             static const std::string CONFIG_RESULT_DEST;
             static const std::string CONFIG_SEND_RESULTS;
 
