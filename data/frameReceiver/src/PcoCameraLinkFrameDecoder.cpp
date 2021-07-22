@@ -9,7 +9,6 @@
  *
  */
 
-#include <iostream>
 #include "PcoCameraLinkFrameDecoder.h"
 #include "version.h"
 
@@ -26,6 +25,7 @@ PcoCameraLinkFrameDecoder::PcoCameraLinkFrameDecoder() :
 // Destructor for PcoCameraLinkFrameDecoder
 PcoCameraLinkFrameDecoder::~PcoCameraLinkFrameDecoder()
 {
+   LOG4CXX_DEBUG_LEVEL(2, logger_, "PcoCameraLinkFrameDecoder cleanup");
 }
 
 int PcoCameraLinkFrameDecoder::get_version_major()
@@ -59,6 +59,8 @@ void PcoCameraLinkFrameDecoder::init(LoggerPtr& logger, OdinData::IpcMessage& co
   FrameDecoder::init(config_msg);
 
   LOG4CXX_DEBUG_LEVEL(2, logger_, "Got decoder config message: " << config_msg.encode());
+
+  controller_.reset(new PcoCameraLinkController(logger_));
 
 }
 

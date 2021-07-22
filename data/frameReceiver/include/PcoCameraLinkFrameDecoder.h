@@ -8,8 +8,11 @@
 #ifndef INCLUDE_PCOCAMERALINKFRAMEDECODER_H_
 #define INCLUDE_PCOCAMERALINKFRAMEDECODER_H_
 
-#include "FrameDecoder.h"
 #include <iostream>
+#include <boost/scoped_ptr.hpp>
+
+#include "FrameDecoder.h"
+#include "PcoCameraLinkController.h"
 
 namespace FrameReceiver
 {
@@ -26,12 +29,15 @@ namespace FrameReceiver
     std::string get_version_long();
 
     void init(LoggerPtr& logger, OdinData::IpcMessage& config_msg);
-    
+
     const size_t get_frame_buffer_size(void) const;
     const size_t get_frame_header_size(void) const;
 
     void monitor_buffers(void);
     void get_status(const std::string param_prefix, OdinData::IpcMessage& status_msg);
+
+  private:
+    boost::scoped_ptr<PcoCameraLinkController> controller_;
   };
 
 }
