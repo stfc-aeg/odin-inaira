@@ -3,7 +3,7 @@ Adapter for ODIN INAIRA
 
 This class 'fill me in'
 
-David Symons, Some random apprencitce Tim found
+David Symons
 """
 import logging
 import tornado
@@ -21,6 +21,8 @@ from odin._version import get_versions
 
 from .odin_inaira import OdinInaira, OdinInairaError
 
+# TODO Add in config for enpoints conections, either hardcode or add to config
+
 class OdinInairaAdapter(ApiAdapter):
 
     
@@ -31,14 +33,20 @@ class OdinInairaAdapter(ApiAdapter):
 
         :param kwargs: keyword arguments specifying options
         """
+
+        logging.debug('INAIRA Adapter init started')
         # Intialise superclass
         super(OdinInairaAdapter, self).__init__(**kwargs)
 
-        
+        if self.options.get(ENDPOINTS_CONFIG_NAME, False):
+            endpoints = [x.strip() for x in self.options.get(ENDPOINTS_CONFIG_NAME, "").split(',')]
+        else:
+            logging.debug("Setting default endpoint of '%s'", DEFAULT_ENDPOINT)
+            endpoints = [DEFAULT_ENDPOINT]
 
-        self.odin_inaira = OdinInaira()
+        self.odin_inaira = OdinInaira(endpoints)
 
-        logging.debug('OdinInairaAdapter loaded')
+        logging.debug('INAIRA Adapter loaded')
 
     @response_types('application/json', default='application/json')
     def get(self, path, request):

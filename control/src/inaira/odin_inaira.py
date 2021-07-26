@@ -3,7 +3,7 @@ Adapter for ODIN INAIRA
 
 This class 'fill me in'
 
-David Symons, Some random apprentice Tim found
+David Symons
 """
 
 import logging
@@ -23,20 +23,29 @@ from odin.adapters.adapter import ApiAdapter, ApiAdapterResponse, request_types,
 from odin.adapters.parameter_tree import ParameterTree, ParameterTreeError
 from odin._version import get_versions
 
-class OdinInaira():
+from odin_data.ipc_channel import IpcChannelException
+
+from .sub_socket import SubSocket
+
+# TODO Set UP IPC Channel
+# TODO Set up connection and data aquisition from IPC Channel
+# TODO Another in line: 113
+
+class OdinInaira(object):
 
     executor = futures.ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, get_frame_updates, connection_address):
+    def __init__(self, endpoints):
         """Initialise the OdinInaira object.
 
         This constructor initlialises the Workshop object, building a parameter tree and
         launching a background task if enabled
         """
+
+        logging.debug("Inistialising INAIRA Adapter")
+
         # Save argumenets
         self.check_counter = 0
-        self.frame_updates = get_frame_updates
-        self.connection_string = connection_address
 
         # Store initialisation time
         self.init_time = time.time()
@@ -60,6 +69,23 @@ class OdinInaira():
             'frame': frame_data 
         })
 
+        # Subscribe to INAIRA Odin Data Adapter
+        self.endpoints = endpoints
+        self.ipc_channels = []
+        for endpoint in self.endpoints:
+            try:
+                tmp_channel = SubSocket(self, endpoint)
+                self.ipc_channels.append(tmp_channel)
+                logging.debug("Subscribed to endpoint: %s", tmp_channel.endpoint)
+            except IpcChannelException as chan_error:
+                logging.warning("Unable to subscribe to %s: %s", endpoint, chan_error)
+
+        logging.debug("Connected to %d endpoints", len(self.ipc_channels))
+
+        if not self.ipc_channels:
+            logging.warning(
+                "Warning: No subscriptions made. Check the configuration file for valid endpoints")
+
         self.run_check_counter()
         self.get_frame_updates()
 
@@ -81,19 +107,10 @@ class OdinInaira():
             time.sleep(1)
             self.check_counter += 1
 
-    def get_frame_updates(self):
+    def get_frame_updates(self, msg):
 
-        # Create connection to INAIRA MI on ODIN DATA
-        context = zmq.Context()
-        socket = context.socket(zmq.SUB)
-        socket.connect(self.connection_string)
-        socket.subscribe() # TODO Filter if necessary
-        logging.debug("Listening to .. add rest of connection string")
-
-        # Get the frame data
-        while self.frame_updates:
-            frame_data = json.loads(socket.recv())
-            # TODO manipulate json into tree
+        self.frame_data = json.loads(msg)
+        # TODO manipulate json into tree
 
 class OdinInairaError(Exception):
     
