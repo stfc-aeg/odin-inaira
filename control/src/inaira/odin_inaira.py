@@ -74,9 +74,8 @@ class OdinInaira(object):
         logging.debug('Parameter tree initialised')
 
         # Subscribe to INAIRA Odin Data Adapter
-        self.endpoints = endpoints
         self.ipc_channels = []
-        for endpoint in self.endpoints:
+        for endpoint in endpoints:
             try:
                 tmp_channel = SubSocket(self, endpoint)
                 self.ipc_channels.append(tmp_channel)

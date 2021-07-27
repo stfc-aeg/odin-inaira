@@ -5,6 +5,7 @@ This class 'fill me in'
 
 David Symons
 """
+from control.src.inaira.adapter_config import AdapterConfig
 import logging
 import tornado
 import time
@@ -20,9 +21,8 @@ from odin.adapters.parameter_tree import ParameterTree, ParameterTreeError
 from odin._version import get_versions
 
 from .odin_inaira import OdinInaira, OdinInairaError
+from .adapter_config import AdapterConfig
 
-ENDPOINTS_CONFIG_NAME = 'live_view_endpoints'
-DEFAULT_ENDPOINT = 'tcp://te7aegnode08:5030' # Replace this with an endpoint form ashley
 
 # TODO Add in config for enpoints conections, either hardcode or add to config
 
@@ -40,14 +40,14 @@ class OdinInairaAdapter(ApiAdapter):
         logging.debug('INAIRA Adapter init started')
         # Intialise superclass
         super(OdinInairaAdapter, self).__init__(**kwargs)
-
+        self.config = AdapterConfig()
 
         # Set endpoints for zmq connections
-        if self.options.get(ENDPOINTS_CONFIG_NAME, False):
-            endpoints = [x.strip() for x in self.options.get(ENDPOINTS_CONFIG_NAME, "").split(',')]
+        if self.config.endpoints != None:
+            endpoints = [x.strip() for x in self.config.endpoints.split(',')]
         else:
-            logging.debug("Setting default endpoint of '%s'", DEFAULT_ENDPOINT)
-            endpoints = [DEFAULT_ENDPOINT]
+            logging.debug("Setting default endpoint of '%s'", self.config.default_endpoints)
+            endpoints = self.config.default_endpoints
 
         self.odin_inaira = OdinInaira(endpoints)
 
