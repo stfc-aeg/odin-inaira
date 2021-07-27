@@ -27,9 +27,7 @@ from odin_data.ipc_channel import IpcChannelException
 
 from .sub_socket import SubSocket
 
-# TODO Set UP IPC Channel
-# TODO Set up connection and data aquisition from IPC Channel
-# TODO Another in line: 113
+# TODO Another in line: 58
 
 class OdinInaira(object):
 
@@ -44,9 +42,12 @@ class OdinInaira(object):
 
         logging.debug("Inistialising INAIRA Adapter")
 
-        # Save argumenets
+        # Save and initialise argumenets
         self.check_counter = 0
-
+        self.frame_number = None
+        self.frame_process_time = None
+        self.frame_result_a = None
+        self.frame_result_b = None
         # Store initialisation time
         self.init_time = time.time()
 
@@ -54,10 +55,11 @@ class OdinInaira(object):
         version_info = get_versions()
 
         # Build a parameter tree for the frame data
-        frame_data = ParameterTree({
+        # TODO Allow results to be handled as an array
+        frame_data_parameter = ParameterTree({
             'frame_number': (lambda: self.frame_number, None),
             'frame_process_time': (lambda: self.frame_process_time, None),
-            'frame_results': (lambda: self.frame_results, None),
+            'frame_result': (lambda: self.frame_result_a, None),
             'test_counter': (lambda: self.check_counter, None)
         })
 
@@ -66,8 +68,10 @@ class OdinInaira(object):
             'odin_version': version_info['version'],
             'tornado_version': tornado.version,
             'server_uptime': (self.get_server_uptime, None),
-            'frame': frame_data 
+            'frame': frame_data_parameter 
         })
+
+        logging.debug('Parameter tree initialised')
 
         # Subscribe to INAIRA Odin Data Adapter
         self.endpoints = endpoints
@@ -87,7 +91,6 @@ class OdinInaira(object):
                 "Warning: No subscriptions made. Check the configuration file for valid endpoints")
 
         self.run_check_counter()
-        self.get_frame_updates()
 
     def get_server_uptime(self):
         return time.time() - self.init_time
@@ -109,8 +112,19 @@ class OdinInaira(object):
 
     def get_frame_updates(self, msg):
 
-        self.frame_data = json.loads(msg)
-        # TODO manipulate json into tree
+        frame_data = json.loads(msg[0])
+        logging.debug(frame_data)
+
+        # Set Frame Number
+        self.frame_number = frame_data['frame_number'] #int
+        # Set Frame Process Time
+        self.frame_process_time = frame_data['process_time'] #float
+        # Set Frame Results
+        self.frame_result = frame_data['result'] #float list
+
+    def cleanup(self):
+        for channel in self.ipc_channels:
+            channel.cleanup()
 
 class OdinInairaError(Exception):
     

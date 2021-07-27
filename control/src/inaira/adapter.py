@@ -21,6 +21,9 @@ from odin._version import get_versions
 
 from .odin_inaira import OdinInaira, OdinInairaError
 
+ENDPOINTS_CONFIG_NAME = 'live_view_endpoints'
+DEFAULT_ENDPOINT = 'tcp://te7aegnode08:5030' # Replace this with an endpoint form ashley
+
 # TODO Add in config for enpoints conections, either hardcode or add to config
 
 class OdinInairaAdapter(ApiAdapter):
@@ -38,6 +41,8 @@ class OdinInairaAdapter(ApiAdapter):
         # Intialise superclass
         super(OdinInairaAdapter, self).__init__(**kwargs)
 
+
+        # Set endpoints for zmq connections
         if self.options.get(ENDPOINTS_CONFIG_NAME, False):
             endpoints = [x.strip() for x in self.options.get(ENDPOINTS_CONFIG_NAME, "").split(',')]
         else:
@@ -117,10 +122,10 @@ class OdinInairaAdapter(ApiAdapter):
 
         return ApiAdapterResponse(response, status_code=status_code)
 
-    # def cleanup(self):
-    #     """Clean up adapter state at shutdown.
+    def cleanup(self):
+        """Clean up adapter state at shutdown.
 
-    #     This method cleans up the adapter state when called by the server at e.g. shutdown.
-    #     It simplied calls the cleanup function of the odinInaira instance.
-    #     """
-    #     self.OdinInaira.cleanup()
+        This method cleans up the adapter state when called by the server at e.g. shutdown.
+        It simplied calls the cleanup function of the odinInaira instance.
+        """
+        self.OdinInaira.cleanup()

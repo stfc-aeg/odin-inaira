@@ -1,5 +1,5 @@
 """
-Adapter for ODIN INAIRA
+Sub Socked for INAIRA Adapter IPC Connection
 
 This class 'fill me in'
 
@@ -7,7 +7,6 @@ David Symons
 """
 from odin_data.ipc_tornado_channel import IpcTornadoChannel
 
-# TODO Edit callback to work with INAIRA
 
 class SubSocket(object):
     """
@@ -25,7 +24,6 @@ class SubSocket(object):
         """
         self.parent = parent
         self.endpoint = endpoint
-        self.frame_count = 0
         self.channel = IpcTornadoChannel(IpcTornadoChannel.CHANNEL_TYPE_SUB, endpoint=endpoint)
         self.channel.subscribe()
         self.channel.connect()
