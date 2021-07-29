@@ -31,13 +31,16 @@ class ModelCreator():
     def create_model(self):
         self.logger.debug("Creating Model")
         preprocessing_layers = [
-            tf.keras.layers.experimental.preprocessing.Rescaling(1./255,
-            input_shape=self.config.image_shape)
+            tf.keras.layers.experimental.preprocessing.Resizing(
+                self.config.image_height, self.config.image_width,
+                input_shape=self.config.image_shape
+            ),
+            tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
         ]
         self.logger.debug("Preprocessing Layers completed")
         
-        # core_layers = self.conv_2d_pooling_layers(16, self.config.number_colour_layers)
-        # self.logger.debug("Core Layers Complete")
+        core_layers = self.conv_2d_pooling_layers(16, self.config.number_colour_layers)
+        self.logger.debug("Core Layers Complete")
 
         dense_layers = [
             tf.keras.layers.Flatten(),
@@ -49,7 +52,7 @@ class ModelCreator():
         
         self.model = tf.keras.Sequential(
             preprocessing_layers +
-            # core_layers +
+            core_layers +
             dense_layers
         )
         self.logger.debug("Model Created")
@@ -81,9 +84,11 @@ class ModelCreatorConfig():
     def __init__(self, config_file):
 
         self.number_colour_layers = 1
+        self.input_width = 2000
+        self.input_height = 1800
         self.image_width = 2000
         self.image_height = 1800
-        self.image_size = (self.image_width, self.image_height)
+        self.image_size = (self.input_width, self.input_height)
         self.num_classes = 2
         self.model_save_location = "tf-model"
 
@@ -97,7 +102,7 @@ class ModelCreatorConfig():
             config = yaml.safe_load(config_file)
             for(key, value) in config.items():
                 setattr(self, key, value)
-        self.image_size = (self.image_width, self.image_height)
+        self.image_size = (self.input_width, self.input_height)
         self.image_shape = self.image_size + (self.number_colour_layers,)
 
 

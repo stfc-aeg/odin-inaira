@@ -1,7 +1,9 @@
 # Configuration for the Model Creator
 ---
-  image_width: 2000
-  image_height: 1800
+  input_width: 2000
+  input_height: 1800
+  image_width: 500
+  image_height: 450
   num_classes: 2
   number_color_layers: 1
   model_save_location: "dummy-model"

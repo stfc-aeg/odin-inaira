@@ -16,8 +16,6 @@ namespace FrameProcessor
     const std::string InairaMLPlugin::CONFIG_MODEL_INPUT_LAYER = "model_input_layer";
     const std::string InairaMLPlugin::CONFIG_MODEL_OUTPUT_LAYER = "model_output_layer";
     const std::string InairaMLPlugin::CONFIG_DECODE_IMG_HEADER = "decode_header";
-    const std::string InairaMLPlugin::CONFIG_TEST_MODEL = "test_model";
-    const std::string InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH = "test_img_path";
     const std::string InairaMLPlugin::CONFIG_RESULT_DEST = "result_socket_addr";
     const std::string InairaMLPlugin::CONFIG_SEND_RESULTS = "send_results";
 
@@ -223,7 +221,7 @@ namespace FrameProcessor
             return;
         }
 
-        try 
+        try
         {
             uint32_t linger = 0;
             publish_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
