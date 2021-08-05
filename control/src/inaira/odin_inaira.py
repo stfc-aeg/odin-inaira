@@ -12,6 +12,7 @@ import time
 import sys
 import zmq
 import json
+import numpy as np
 
 from concurrent import futures
 
@@ -34,7 +35,11 @@ class OdinInaira(object):
     executor = futures.ThreadPoolExecutor(max_workers=1)
 
     def __init__(self, endpoints):
-        """Initialise the OdinInaira object.
+        """Initialise the OdinInaira object.        # Roll past 100 array to 1 to the right ->
+        self.past_100 = np.roll(self.past_100, 1, axis=0)
+
+        # Set replace first item in past 100
+        self.past_100[0] = [self.frame_number, self.frame_classification, self.frame_certainty]
 
         This constructor initlialises the Workshop object, building a parameter tree and
         launching a background task if enabled
@@ -46,8 +51,10 @@ class OdinInaira(object):
         self.check_counter = 0
         self.frame_number = None
         self.frame_process_time = None
-        self.frame_result_a = None
-        self.frame_result_b = None
+
+        self.test_array = [None]*100
+        self.frame_data = None
+
         # Store initialisation time
         self.init_time = time.time()
 
@@ -55,20 +62,19 @@ class OdinInaira(object):
         version_info = get_versions()
 
         # Build a parameter tree for the frame data
-        # TODO Allow results to be handled as an array
-        frame_data_parameter = ParameterTree({
-            'frame_number': (lambda: self.frame_number, None),
-            'frame_process_time': (lambda: self.frame_process_time, None),
-            'frame_result': (lambda: self.frame_result_a, None),
-            'test_counter': (lambda: self.check_counter, None)
-        })
+        # frame_data_parameter = ParameterTree({
+        #     'frame_number': (lambda: self.frame_number, None),
+        #     'frame_process_time': (lambda: self.frame_process_time, None),
+        #     'frame_classification': (lambda: self.frame_classification, None),
+        #     'frame_certainty': (lambda: self.frame_certainty, None)
+        # })
 
         # Store all information in a parameter tree
         self.param_tree = ParameterTree({
             'odin_version': version_info['version'],
             'tornado_version': tornado.version,
             'server_uptime': (self.get_server_uptime, None),
-            'frame': frame_data_parameter 
+            'frame_data' : (lambda: self.frame_data, None)
         })
 
         logging.debug('Parameter tree initialised')
@@ -89,7 +95,6 @@ class OdinInaira(object):
             logging.warning(
                 "Warning: No subscriptions made. Check the configuration file for valid endpoints")
 
-        self.run_check_counter()
 
     def get_server_uptime(self):
         return time.time() - self.init_time
@@ -97,35 +102,20 @@ class OdinInaira(object):
     def get(self, path):
         return self.param_tree.get(path)
 
-    def set(self, path, data):
-        try:
-            self.param_tree.set(path, data)
-        except ParameterTreeError as e:
-            raise OdinInairaError(e)
-
-    @run_on_executor
-    def run_check_counter(self):
-        while self.check_counter < 100:
-            time.sleep(1)
-            self.check_counter += 1
-
     def get_frame_updates(self, msg):
 
-        frame_data = json.loads(msg[0])
-        logging.debug(frame_data)
+        self.frame_data = json.loads(msg[0])
+        logging.debug(self.frame_data)
 
-        # Set Frame Number
-        self.frame_number = frame_data['frame_number'] #int
-        # Set Frame Process Time
-        self.frame_process_time = frame_data['process_time'] #float
-        # Set Frame Results
-        self.frame_result = frame_data['result'] #float list
+        np.roll(self.test_array, 1)
+        self.test_array[0] = self.frame_data
+
 
     def cleanup(self):
         for channel in self.ipc_channels:
             channel.cleanup()
 
 class OdinInairaError(Exception):
-    
+
     pass
 

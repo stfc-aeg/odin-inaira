@@ -35,22 +35,119 @@
         </div>
       </nav>
 
-      <div class="container">
-
-        <div class="odin-server">
-          <h1>ODIN Workshop</h1>
-          <p class="lead">Welcome to the ODIN workshop!</p>
-          <p>API version is:&nbsp;<span id="api-version">&nbsp;</span></p>
-          <p>Registered API adapters:&nbsp;<span id="api-adapters">&nbsp;</span></p>
-          <p>Just a simple test counter:&nbsp;<span id="test_counter">&nbsp;</span></p>
+      <div class = "container">
+        <div class = "adapters">
+          <div>
+            <label>Odin INAIRA Control</label>
+          </div>
+          <div>
+            <label>Current Frame Data</label>
+            <div id="current_frame_data"></div>
+          </div>
         </div>
 
       </div><!-- /.container -->
+
+      <div class="container-fluid">
+        <div class="row fluid-row">
+
+            <div class="span3">
+                <div class="well sidebar-nav-fixed">
+                    <div class="container-fluid">
+                        <div class="row sidebar-title">
+                            <h3>Live View Demo</h3>
+                        </div>
+                        <div class="row sidebar-row vertical-align">
+                            <div class="col-xs-5">
+                                <b>Auto&#8209;update:</b> 
+                            </div>
+                            <div class="col-xs-7">
+                                <input type="checkbox" name="liveview_enable" data-size="small">
+                            </div>
+                        </div>
+                        <div class="row sidebar-row vertical-align">
+                            <div class="col-xs-5">
+                                <b>Colour&nbsp;map:</b> 
+                            </div>
+                            <div class="col-xs-7">
+                                <select class="form-control" id="colormap_select">
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row sidebar-row vertical-align">
+                            <div class="col-xs-5">
+                                <b>Clipping:</b> 
+                            </div>
+                            <div class="col-xs-7">
+                                <input type="checkbox" name="clip_enable" data-size="small":">
+                            </div>
+                        </div>
+                        <div class="row sidebar-row vertical-align row-bold">
+                            <div class="col-xs-3 text-left" id="clip_min">&nbsp;</div>
+                            <div class="col-xs-6 text-center">Range</div>
+                            <div class="col-xs-3 text-right" id="clip_max">&nbsp;</div>
+                        </div>
+                        <div class="row sidebar-row sidebar-row-full">
+                            <div class="col-xs12 range-col">
+                                <input id="clip_range"
+                                    type="text" value="" data-slider-id="clip-range" 
+                                    data-slider-min="0" data-slider-max="100" 
+                                    data-slider-step="1" data-slider-value="[0,100]"
+                                />
+                            </div>
+                        </div>
+                        <div class="row sidebar-row vertical-align">
+                            <div class="col-xs-5">
+                                <b>Auto&#8209;sizing:</b> 
+                            </div>
+                            <div class="col-xs-7">
+                                <input type="checkbox" name="autosize_enable" data-size="small":">
+                            </div>
+                        </div>
+                        <div class="row sidebar-row vertical-align row-bold">
+                            <div class="col-xs-3 text-left" id="clip_min">0%</div>
+                            <div class="col-xs-6 text-center">Size</div>
+                            <div class="col-xs-3 text-right" id="clip_max">100%</div>
+                        </div>
+                        <div class="row sidebar-row sidebar-row-full">
+                            <div class="col-xs12 range-col">
+                                <input id="size_range"
+                                    type="text" value="" data-slider-id="size-range" 
+                                    data-slider-min="0" data-slider-max="100" 
+                                    data-slider-step="1" data-slider-value="100"
+                                />
+                            </div>
+                        </div>
+                        <div class="row sidebar-row sidebar-row-full">
+                            <div class="col-xs-5">
+                                <b>Frame Rate:</b>
+                            </div>
+                            <div class="col-xs-7">
+                                <p id="frame_rate"></p>
+                            </div>
+                        </div>
+                    </div> <!-- container-fluid --> 
+                </div> <!-- well sidebar-nav-fixed -->
+            </div> <!-- span3 -->
+
+            <div class="span9 span-fixed-sidebar">
+                <div id="liveview_container" class="odin-server live-image">
+                    <img id='liveview_image' src='/api/0.1/live_view/image' data-src='/api/0.1/live_view/image'>
+                </div> <!-- odin-server -->
+            </div> <!-- span9 -->
+
+        </div> <!-- row fluid-row -->
+    </div> <!-- container-fluid-->
+    
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="js/jquery-2.2.3.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="js/bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
+    <script src="js/bootstrap-3.3.6-dist/js/bootstrap-switch.min.js"></script>
+    <script src="js/bootstrap-slider-10.2.1/js/bootstrap-slider.min.js"></script>
+    <script src="js/frame_updater.js"></script>
+    <script src='js/live_view.js'></script>
     <script src="js/odin_server.js"></script>
   </body>
 </html>
