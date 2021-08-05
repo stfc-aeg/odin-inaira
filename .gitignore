@@ -8,7 +8,8 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+build*/
+build-ubuntu/
 develop-eggs/
 dist/
 downloads/
@@ -127,3 +128,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# VSCode metadata
+.vscode/
+
+# Cppflow Stuff
+data/frameProcessor/include/cppflow
