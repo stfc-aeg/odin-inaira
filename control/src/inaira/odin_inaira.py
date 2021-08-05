@@ -41,7 +41,7 @@ class OdinInaira(object):
         # Set replace first item in past 100
         self.past_100[0] = [self.frame_number, self.frame_classification, self.frame_certainty]
 
-        This constructor initlialises the Workshop object, building a parameter tree and
+        This constructor initlialises the OdinInaira object, building a parameter tree and
         launching a background task if enabled
         """
 
