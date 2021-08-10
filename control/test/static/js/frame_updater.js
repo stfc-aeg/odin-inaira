@@ -17,34 +17,21 @@ function round3dp(flt)
 
 function update_live_view_frame(frame_data)
 {
-    return `
-        <div>  
-            <table>
-                <colgroup>
-                    <col>
-                    <col>
-                </colgroup>
-                <tbody>
-                    <tr>
-                        <th> Frame </th>
-                        <td> ${frame_data['frame_number']} </td>
-                    </tr>
-                    <tr>
-                        <th> Processing Time </th>
-                        <td> ${frame_data['process_time']} ms</td>
-                    </tr>
-                    <tr>
-                        <th> Result Weight 1: </th>
-                        <td> ${frame_data['result'][0].toFixed(4)}</td>
-                    </tr>
-                    <tr>
-                        <th> Result Weight 2: </th>
-                        <td> ${frame_data['result'][1].toFixed(4)}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        `;
+    console.log("Starting data population");
+    $('#frame_number').html(frame_data['frame_number']);
+    $('#process_time').html(frame_data['process_time'] + "ms");
+
+    if (frame_data['result'][0].toFixed(4) > frame_data['result'][1].toFixed(4))
+    {
+        $('#classification').html("Bad");
+        $('#result').html(frame_data['result'][0].toFixed(4));
+    }
+    else 
+    {
+        $('#classification').html("Good");
+        $('#result').html(frame_data['result'][01].toFixed(4));
+    }
+    console.log("Finished data population");
 }
 
 function update_past_frames(frame_past_data)
@@ -76,7 +63,7 @@ function update_frame_data() {
     $.getJSON('/api/' + api_version + '/inaira/', function(response) {
         frame_data = response.frame_data;
         console.log(response.frame_data)
-        $("#current_frame_data").html(update_live_view_frame(frame_data));
+        update_live_view_frame(frame_data);
     });
 }
 

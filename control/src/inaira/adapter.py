@@ -49,6 +49,7 @@ class OdinInairaAdapter(ApiAdapter):
             logging.debug("Setting default endpoint of '%s'", self.options.get(DEFAULT_ENDPOINT, ""))
             endpoints = self.config.default_endpoints
 
+
         self.odin_inaira = OdinInaira(endpoints)
 
         logging.debug('INAIRA Adapter loaded')
