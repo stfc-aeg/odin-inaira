@@ -21,9 +21,19 @@ namespace FrameProcessor
             bool reset_statistics(void);
 
         private:
+            /*
+            Stuct to hold returnable Image Data and header info
+            */
+            struct LiveImageData
+            {
+                void* frame_data_ptr;
+                std::string json_header;
+            };
+            
             void process_frame(boost::shared_ptr<Frame> frame);
             void decodeHeader(boost::shared_ptr<Frame> frame);
-            void sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results);
+            std::string sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results);
+            InairaMLPlugin::LiveImageData sendImage(boost::shared_ptr<Frame> frame);
 
             void setSocketAddr(std::string value);
 
@@ -33,6 +43,7 @@ namespace FrameProcessor
             static const std::string CONFIG_DECODE_IMG_HEADER;
             static const std::string CONFIG_RESULT_DEST;
             static const std::string CONFIG_SEND_RESULTS;
+            static const std::string CONFIG_SEND_IMAGE;
 
             std::string model_path;
             bool decode_header;
@@ -44,6 +55,7 @@ namespace FrameProcessor
             OdinData::IpcChannel publish_socket_;
             bool is_bound_;
             bool send_results_;
+            bool send_image_;
 
             int32_t avg_process_time;
             int32_t total_process_time;

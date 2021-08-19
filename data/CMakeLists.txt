@@ -24,11 +24,13 @@ set(FRAMESIMULATOR_DIR ${INAIRA_SOURCE_DIR}/frameSimulator)
 # set the integrationTest directory
 set(TEST_DIR ${INAIRA_SOURCE_DIR}/test)
 
-# set the tensorflow lib directory for Cppflow
-find_library(TENSORFLOW_LIB tensorflow HINT ${TENSORFLOW_ROOT_DIR}/lib)
-
 # C++17 requires for cppflow
 set(CMAKE_CXX_STANDARD 17)
+
+# Avoid linker warnings for tensorflow
+set(GCC_LINKER_FLAGS "-fuse-ld=gold")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_LINKER_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GCC_LINKER_FLAGS}")
 
 # Appends the cmake/modules path inside the MAKE_MODULE_PATH variable which stores the
 # directories of additional CMake modules (ie. MacroOutOfSourceBuild.cmake):
@@ -47,9 +49,10 @@ find_package( Boost 1.41.0
 find_package(Log4CXX 0.10.0 REQUIRED)
 find_package(ZeroMQ 3.2.4 REQUIRED)
 find_package(OdinData REQUIRED)
+find_package(Tensorflow REQUIRED)
 find_package(Cppflow REQUIRED)
 
-message("Determining inaira-detector version")
+message("/nDetermining inaira-detector version")
 include(GetGitRevisionDescription)
 git_describe(GIT_DESC_STR)
 
@@ -66,8 +69,6 @@ message("-- short version: ${VERSION_SHORT}")
 
 configure_file(${COMMON_DIR}/include/version.h.in "${CMAKE_BINARY_DIR}/include/version.h")
 include_directories(${CMAKE_BINARY_DIR}/include)
-
-include_directories($ENV{HOME}/libtensorflow2/include)
 
 # Add common/include directory to include path
 include_directories(${COMMON_DIR}/include)

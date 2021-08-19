@@ -39,7 +39,7 @@ endif()
 if(CPPFLOW_ROOT_DIR)
     find_path(
             CPPFLOW_INCLUDE_DIR cppflow.h
-            PATHS ${CPPFLOW_ROOT_DIR}
+            PATHS ${CPPFLOW_ROOT_DIR}/include/cppflow
             NO_DEFAULT_PATH
     )
 else()
