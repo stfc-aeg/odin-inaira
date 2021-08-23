@@ -34,7 +34,7 @@ class OdinInaira(object):
 
     executor = futures.ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, endpoints):
+    def __init__(self, endpoints, live_image):
         """Initialise the OdinInaira object.        # Roll past 100 array to 1 to the right ->
         self.past_100 = np.roll(self.past_100, 1, axis=0)
 
@@ -51,7 +51,7 @@ class OdinInaira(object):
         self.check_counter = 0
         self.frame_number = None
         self.frame_process_time = None
-
+        self.process_live_image = live_image
         self.test_array = [None]*100
         self.frame_data = None
 
@@ -61,6 +61,7 @@ class OdinInaira(object):
         # Get package version information
         version_info = get_versions()
 
+        self.adapters = {}
         # Build a parameter tree for the frame data
         # frame_data_parameter = ParameterTree({
         #     'frame_number': (lambda: self.frame_number, None),
@@ -109,6 +110,12 @@ class OdinInaira(object):
 
         np.roll(self.test_array, 1)
         self.test_array[0] = self.frame_data
+
+        if self.process_live_image:
+            logging.info("Sending Image data from Inaira to Live View")
+            liveview_data = msg[1:]
+            liveview_adapter = self.adapters['live_view']
+            liveview_adapter.live_viewer.create_image_from_socket(liveview_data)
 
 
     def cleanup(self):
