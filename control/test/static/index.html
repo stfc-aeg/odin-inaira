@@ -5,12 +5,16 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>ODIN Server</title>
+    <title>Overview | ODIN INAIRA</title>
 
     <!-- Bootstrap -->
     <link href="js/bootstrap-3.3.6-dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="css/odin-server.css" rel="stylesheet">
 
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
   </head>
   <body>
 
@@ -35,134 +39,183 @@
         </div>
       </nav>
 
-      <div class = "container">
-        <div class = "adapters">
-          <div>
-            <label>Odin INAIRA Control</label>
-          </div>
-          <div>
-            <label>Current Frame Data</label>
-            <div>  
-                <table>
-                    <colgroup>
-                        <col>
-                        <col>
-                    </colgroup>
-                    <tbody>
-                        <tr>
-                            <th> Frame </th>
-                            <td id="frame_number"> </td>
-                        </tr>
-                        <tr>
-                            <th> Processing Time </th>
-                            <td id="process_time"> </td>
-                        </tr>
-                        <tr>
-                            <th> Classification </th>
-                            <td id="classification"> </td>
-                        </tr>
-                        <tr>
-                            <th> Result Certainty </th>
-                            <td id="result"> </td>
-                        </tr>
-                    </tbody>
-                </table>
+      <main class="clearfix">
+        <div class = "container">
+            <div class = "adapters">
+                <div>
+                    <h1 class="align-center bold">Odin INAIRA Control</h1>
+                </div>
+
+                <div class="row well"><!-- Camera Controls -->
+                    <!-- Add:
+                            Start/Stop
+                            Frame Rate
+                            Focus
+                            Zoom
+                            Etc
+                        -->
+                    <h2> Camera Controls </h2>
+                    <section class="column screen-quater">
+                        <label> Start / Stop Camera </label>
+                        <input type="checkbox" name="start_stop" data-size="small">
+                    </section>
+                    <section class="column screen-quater">
+                        <label> Frame Rate </label>
+                        <input type="number" name="frame_rate">
+                    </section>
+                    <section class="column screen-quater">
+                        <label> Focus </label>
+                        <input type="range" min="1" max="100" value="1" name="focus">
+                    </section>
+                    <section class="column screen-quater">
+                        <label> Zoom </label>
+                        <input type="range" min="1" max="100" value="1" name="zoom">
+                    </section>
+                </div> <!-- End of Row -->
+
+                <div class="row well"> <!-- Frame Data and Live View -->
+                    <section class="column screen-half "><!-- Current Frame Data -->  
+                        <h2>Current Frame Data</h2>
+                        <table class="equal-width">
+                            <colgroup>
+                                <col>
+                                <col>
+                            </colgroup>
+                            <tbody>
+                                <tr>
+                                    <th> Frame </th>
+                                    <td id="frame_number"> </td>
+                                </tr>
+                                <tr>
+                                    <th> Processing Time </th>
+                                    <td id="process_time"> </td>
+                                </tr>
+                                <tr>
+                                    <th> Classification </th>
+                                    <td id="classification"> </td>
+                                </tr>
+                                <tr>
+                                    <th> Result Certainty </th>
+                                    <td id="result"> </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h2>Experiment Data</h2>
+                        <table class="equal-width">
+                            <colgroup>
+                                <col>
+                                <col>
+                            </colgroup>
+                            <tbody>
+                                <tr>
+                                    <th> Total Frames </th>
+                                    <td id="total_frames"></td>
+                                </tr>
+                                <tr>
+                                    <th> Average Processing Time </th>
+                                    <td id="avg_process_time"></td>
+                                </tr>
+                                <tr>
+                                    <th> Frame Pass Ratio </th>
+                                    <td id="pass_ratio"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section> <!-- End of live data column -->
+
+                    <section class="column screen-half "><!-- Live View Controls -->
+                        <h2> Live View Controls </h2>
+                        <div class="sidebar-nav-fixed">
+                            <div class="container-fluid">
+                                <div class="row sidebar-row vertical-align">
+                                    <div class="col-xs-5">
+                                        <b>Auto&#8209;update:</b> 
+                                    </div>
+                                    <div class="col-xs-7">
+                                        <input type="checkbox" name="liveview_enable" data-size="small">
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row vertical-align">
+                                    <div class="col-xs-5">
+                                        <b>Colour&nbsp;map:</b> 
+                                    </div>
+                                    <div class="col-xs-7">
+                                        <select class="form-control" id="colormap_select">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row vertical-align">
+                                    <div class="col-xs-5">
+                                        <b>Clipping:</b> 
+                                    </div>
+                                    <div class="col-xs-7">
+                                        <input type="checkbox" name="clip_enable" data-size="small":">
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row vertical-align bold">
+                                    <div class="col-xs-3 text-left" id="clip_min">&nbsp;</div>
+                                    <div class="col-xs-6 text-center">Range</div>
+                                    <div class="col-xs-3 text-right" id="clip_max">&nbsp;</div>
+                                </div>
+                                <div class="row sidebar-row sidebar-row-full">
+                                    <div class="col-xs12 range-col">
+                                        <input id="clip_range"
+                                            type="text" value="" data-slider-id="clip-range" 
+                                            data-slider-min="0" data-slider-max="100" 
+                                            data-slider-step="1" data-slider-value="[0,100]"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row vertical-align">
+                                    <div class="col-xs-5">
+                                        <b>Auto&#8209;sizing:</b> 
+                                    </div>
+                                    <div class="col-xs-7">
+                                        <input type="checkbox" name="autosize_enable" data-size="small":">
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row vertical-align bold">
+                                    <div class="col-xs-3 text-left" id="clip_min">0%</div>
+                                    <div class="col-xs-6 text-center">Size</div>
+                                    <div class="col-xs-3 text-right" id="clip_max">100%</div>
+                                </div>
+                                <div class="row sidebar-row sidebar-row-full">
+                                    <div class="col-xs12 range-col">
+                                        <input id="size_range"
+                                            type="text" value="" data-slider-id="size-range" 
+                                            data-slider-min="0" data-slider-max="100" 
+                                            data-slider-step="1" data-slider-value="100"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="row sidebar-row sidebar-row-full">
+                                    <div class="col-xs-5">
+                                        <b>Frame Rate:</b>
+                                    </div>
+                                    <div class="col-xs-7">
+                                        <p id="frame_rate"></p>
+                                    </div>
+                                </div>
+                            </div> <!-- container-fluid --> 
+                        </div> <!-- well sidebar-nav-fixed -->
+                        <div id="liveview_container" class="odin-server live-image">
+                            <img id='liveview_image' src='/api/0.1/live_view/image' data-src='/api/0.1/live_view/image'>
+                        </div> 
+                    </section> <!-- End of Live View Column -->
+                </div><!-- End of Row -->
+                <div class="row">
+                    <section class="column screen-full">
+                        
+                    </section>
+                </div><!-- End of Row -->
             </div>
-          </div>
-        </div>
+      </main>
 
-      </div><!-- /.container -->
+      <footer>
 
-      <div class="container-fluid">
-        <div class="row fluid-row">
-
-            <div class="span3">
-                <div class="well sidebar-nav-fixed">
-                    <div class="container-fluid">
-                        <div class="row sidebar-title">
-                            <h3>Live View Demo</h3>
-                        </div>
-                        <div class="row sidebar-row vertical-align">
-                            <div class="col-xs-5">
-                                <b>Auto&#8209;update:</b> 
-                            </div>
-                            <div class="col-xs-7">
-                                <input type="checkbox" name="liveview_enable" data-size="small">
-                            </div>
-                        </div>
-                        <div class="row sidebar-row vertical-align">
-                            <div class="col-xs-5">
-                                <b>Colour&nbsp;map:</b> 
-                            </div>
-                            <div class="col-xs-7">
-                                <select class="form-control" id="colormap_select">
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row sidebar-row vertical-align">
-                            <div class="col-xs-5">
-                                <b>Clipping:</b> 
-                            </div>
-                            <div class="col-xs-7">
-                                <input type="checkbox" name="clip_enable" data-size="small":">
-                            </div>
-                        </div>
-                        <div class="row sidebar-row vertical-align row-bold">
-                            <div class="col-xs-3 text-left" id="clip_min">&nbsp;</div>
-                            <div class="col-xs-6 text-center">Range</div>
-                            <div class="col-xs-3 text-right" id="clip_max">&nbsp;</div>
-                        </div>
-                        <div class="row sidebar-row sidebar-row-full">
-                            <div class="col-xs12 range-col">
-                                <input id="clip_range"
-                                    type="text" value="" data-slider-id="clip-range" 
-                                    data-slider-min="0" data-slider-max="100" 
-                                    data-slider-step="1" data-slider-value="[0,100]"
-                                />
-                            </div>
-                        </div>
-                        <div class="row sidebar-row vertical-align">
-                            <div class="col-xs-5">
-                                <b>Auto&#8209;sizing:</b> 
-                            </div>
-                            <div class="col-xs-7">
-                                <input type="checkbox" name="autosize_enable" data-size="small":">
-                            </div>
-                        </div>
-                        <div class="row sidebar-row vertical-align row-bold">
-                            <div class="col-xs-3 text-left" id="clip_min">0%</div>
-                            <div class="col-xs-6 text-center">Size</div>
-                            <div class="col-xs-3 text-right" id="clip_max">100%</div>
-                        </div>
-                        <div class="row sidebar-row sidebar-row-full">
-                            <div class="col-xs12 range-col">
-                                <input id="size_range"
-                                    type="text" value="" data-slider-id="size-range" 
-                                    data-slider-min="0" data-slider-max="100" 
-                                    data-slider-step="1" data-slider-value="100"
-                                />
-                            </div>
-                        </div>
-                        <div class="row sidebar-row sidebar-row-full">
-                            <div class="col-xs-5">
-                                <b>Frame Rate:</b>
-                            </div>
-                            <div class="col-xs-7">
-                                <p id="frame_rate"></p>
-                            </div>
-                        </div>
-                    </div> <!-- container-fluid --> 
-                </div> <!-- well sidebar-nav-fixed -->
-            </div> <!-- span3 -->
-
-            <div class="span9 span-fixed-sidebar">
-                <div id="liveview_container" class="odin-server live-image">
-                    <img id='liveview_image' src='/api/0.1/live_view/image' data-src='/api/0.1/live_view/image'>
-                </div> <!-- odin-server -->
-            </div> <!-- span9 -->
-
-        </div> <!-- row fluid-row -->
-    </div> <!-- container-fluid-->
+      </footer>
+    </body>
     
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->

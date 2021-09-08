@@ -139,9 +139,7 @@ class FrameProducer():
         totalimages = 0
 
         # Number of files in directory
-        for files in walk(testfilespath):
-            for Files in files:
-                totalimages += 1
+        filelist = listdir(testfilespath)
 
         # Loop over the specified number of frames and transmit them
         self.logger.info("Sending %d frames to processor\n", self.config.frames)
@@ -156,7 +154,7 @@ class FrameProducer():
                 self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
 
                 # Set image path based on frame number
-                testimage = listdir(testfilespath)[frame%totalimages]
+                testimage = filelist[frame%len(filelist)]
 
                 # Load image
                 vals = io.imread(join(testfilespath,testimage))

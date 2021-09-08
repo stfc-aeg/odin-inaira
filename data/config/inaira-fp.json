@@ -59,16 +59,17 @@
     },
     {
         "learning": {
-            "model_path":"include/models/casting_prob_model/",
+            "model_path":"/aeg_sw/work/projects/inaira/casting/models/casting_prob_model/",
             "model_input_layer":"serving_default_sequential_input:0",
             "decode_header": true,
             "test_model": false,
-            "test_img_path": "include/casting_model/cast_ok_0_10.jpeg"
+            "test_img_path": "include/casting_model/cast_ok_0_10.jpeg",
+            "result_socket_addr": "tcp://0.0.0.0:5020"
         }
     },
     {
         "liveview": {
-            "live_view_socket_addr":"tcp://127.0.0.1:5020"
+            "live_view_socket_addr":"tcp://0.0.0.0:5021"
         }
     },
     {

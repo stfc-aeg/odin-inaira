@@ -25,13 +25,14 @@ namespace FrameProcessor
             void decodeHeader(boost::shared_ptr<Frame> frame);
             void sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results);
 
+            void setSocketAddr(std::string value);
+
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
             static const std::string CONFIG_MODEL_OUTPUT_LAYER;
             static const std::string CONFIG_DECODE_IMG_HEADER;
-            static const std::string CONFIG_TEST_MODEL;
-            static const std::string CONFIG_MODEL_TEST_IMG_PATH;
             static const std::string CONFIG_RESULT_DEST;
+            static const std::string CONFIG_SEND_RESULTS;
 
             std::string model_path;
             bool decode_header;
@@ -41,6 +42,8 @@ namespace FrameProcessor
 
             std::string data_socket_addr_;
             OdinData::IpcChannel publish_socket_;
+            bool is_bound_;
+            bool send_results_;
 
             int32_t avg_process_time;
             int32_t total_process_time;
