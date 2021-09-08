@@ -6,8 +6,8 @@
   shared_mem_size: 16000000
   shared_buffer_size: 4000000
   boost_mmap_mode: false
-  ready_endpoint: tcp://127.0.0.1:5001
-  release_endpoint: tcp://127.0.0.1:5002
+  ready_endpoint: 
+  release_endpoint: 
   frames: 0
-  testfile_path: 'custom-filepath'
-  frames_per_second: 60
+  testfile_path: 
+  frames_per_second: 1
