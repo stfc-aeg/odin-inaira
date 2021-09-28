@@ -16,3 +16,9 @@ target_link_libraries (InairaMLPlugin "${TENSORFLOW_LIBRARIES}")
 
 install(TARGETS InairaMLPlugin LIBRARY DESTINATION lib)
 # install(TARGETS InairaMLCppflow LIBRARY DESTINATION lib)
+
+add_library(PcoCameraProcessPlugin SHARED PcoCameraProcessPlugin.cpp)
+target_include_directories(PcoCameraProcessPlugin PRIVATE ../../include)
+
+install(TARGETS PcoCameraProcessPlugin LIBRARY DESTINATION lib)
+
