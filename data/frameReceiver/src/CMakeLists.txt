@@ -21,7 +21,9 @@ if (PCOCAMERA_FOUND)
 	add_library(PcoCameraLinkFrameDecoder SHARED
 		PcoCameraLinkFrameDecoder.cpp
 		PcoCameraLinkFrameDecoderLib.cpp
-		PcoCameraLinkController.cpp)
+		PcoCameraLinkController.cpp
+		PcoCameraConfiguration.cpp
+		PcoCameraStateMachine.cpp)
 
 	target_include_directories(PcoCameraLinkFrameDecoder PRIVATE ${PCOCAMERA_INCLUDES})
 

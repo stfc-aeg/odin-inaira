@@ -1,4 +1,4 @@
-/*
+ /*
  * PcoCameraLinkFrameDecoder.h
  *
  *  Created on: 20 July 2021
@@ -10,13 +10,14 @@
 
 #include <iostream>
 #include <boost/scoped_ptr.hpp>
+#include <boost/thread.hpp>
 
-#include "FrameDecoder.h"
+#include "FrameDecoderCameraLink.h"
 #include "PcoCameraLinkController.h"
 
 namespace FrameReceiver
 {
-  class PcoCameraLinkFrameDecoder : public FrameDecoder
+  class PcoCameraLinkFrameDecoder : public FrameDecoderCameraLink
   {
   public:
     PcoCameraLinkFrameDecoder();
@@ -34,10 +35,19 @@ namespace FrameReceiver
     const size_t get_frame_header_size(void) const;
 
     void monitor_buffers(void);
+
+    void handle_ctrl_channel(void);
+    void configure(OdinData::IpcMessage& config_msg, OdinData::IpcMessage& config_reply);
     void get_status(const std::string param_prefix, OdinData::IpcMessage& status_msg);
 
   private:
+
+    void run_camera_service(void);
     boost::scoped_ptr<PcoCameraLinkController> controller_;
+
+    bool acquiring_;
+    unsigned long frames_acquired_;
+
   };
 
 }
