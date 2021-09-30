@@ -37,6 +37,8 @@ void PcoCameraState::execute_command(std::string& command)
 
 void PcoCameraState::execute_command(PcoCameraState::CommandType command)
 {
+    boost::lock_guard<boost::mutex> transition_lock(state_transition_mutex_);
+
     switch (command)
     {
         case CommandConnect:

@@ -11,6 +11,7 @@
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/mpl/list.hpp>
 #include <boost/bimap.hpp>
+#include <boost/thread/mutex.hpp>
 
 namespace sc = boost::statechart;
 namespace mpl = boost::mpl;
@@ -123,6 +124,7 @@ namespace FrameReceiver
         PcoCameraLinkController* controller_;
         CommandTypeMap command_type_map_;
         StateTypeMap state_type_map_;
+        boost::mutex state_transition_mutex_;
     };
 
     struct IStateInfo
