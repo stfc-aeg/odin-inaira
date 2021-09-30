@@ -1,4 +1,5 @@
 #include <map>
+#include <sstream>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -8,16 +9,26 @@
 #include <boost/foreach.hpp>
 
 using namespace boost::placeholders;
-namespace pt = boost::property_tree;
 
 class ConfigContainer
 {
 
-    typedef boost::function<void(pt::ptree&)> SetterFunc;
+    typedef boost::function<void(boost::property_tree::ptree&)> SetterFunc;
     typedef std::map<std::string, SetterFunc> SetterFuncMap;
 
     public:
-        void update(pt::ptree& tree)
+
+        void update(const char* json)
+        {
+            std::stringstream ss;
+            ss << json;
+
+            boost::property_tree::ptree tree;
+            boost::property_tree::read_json(ss, tree);
+            update(tree);
+        }
+
+        void update(boost::property_tree::ptree& tree)
         {
             for (SetterFuncMap::iterator it = setter_map_.begin(); it != setter_map_.end(); ++it)
             {
@@ -36,7 +47,7 @@ class ConfigContainer
         }
 
         template<typename T>
-        void param_set(T& param, std::string path, pt::ptree& tree)
+        void param_set(T& param, std::string path, boost::property_tree::ptree& tree)
         {
             replace_path_sep(path);
 
@@ -56,15 +67,15 @@ class ConfigContainer
         }
 
         template<typename T>
-        void vector_param_set(std::vector<T>& param, std::string path, pt::ptree& tree)
+        void vector_param_set(std::vector<T>& param, std::string path, boost::property_tree::ptree& tree)
         {
             replace_path_sep(path);
 
-            boost::optional< pt::ptree& > array = tree.get_child_optional(path);
+            boost::optional< boost::property_tree::ptree& > array = tree.get_child_optional(path);
             if (array)
             {
                 param.clear();
-                BOOST_FOREACH(pt::ptree::value_type &v, *array) {
+                BOOST_FOREACH(boost::property_tree::ptree::value_type &v, *array) {
                     param.push_back(v.second.data());
                 }
             }
