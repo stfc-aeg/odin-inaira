@@ -41,6 +41,7 @@ namespace FrameReceiver
     std::size_t get_image_size(void);
 
     void execute_command(std::string& command);
+    void update_configuration(const char* params);
 
     bool acquire_image(void* image_buffer);
 
@@ -51,8 +52,12 @@ namespace FrameReceiver
     void start_recording(void);
     void stop_recording(void);
 
+    void run_camera_service(void);
+
     std::string camera_state_name(void);
     bool camera_running(void) { return camera_running_; }
+    const bool is_acquiring(void) const { return acquiring_; }
+    const unsigned long frames_acquired(void) const { return frames_acquired_; }
 
   private:
 
@@ -65,14 +70,14 @@ namespace FrameReceiver
     boost::shared_ptr<boost::thread> controller_thread_;
     std::string notify_endpoint_;
 
-    bool run_thread_;
-
     boost::scoped_ptr<CPco_com> camera_;
     boost::scoped_ptr<CPco_grab_clhs> grabber_;
 
     bool camera_opened_;
     bool grabber_opened_;
     volatile bool camera_running_;
+    volatile bool acquiring_;
+    volatile unsigned long frames_acquired_;
 
     int camera_num_;
     int grabber_timeout_ms_;
@@ -80,6 +85,7 @@ namespace FrameReceiver
     uint32_t image_width_;
     uint32_t image_height_;
     uint32_t image_pixel_size_;
+    std::size_t image_data_type_;
 
   };
 }

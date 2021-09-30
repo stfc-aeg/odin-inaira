@@ -40,6 +40,8 @@ namespace FrameReceiver
     void configure(OdinData::IpcMessage& config_msg, OdinData::IpcMessage& config_reply);
     void get_status(const std::string param_prefix, OdinData::IpcMessage& status_msg);
 
+    const bool run_camera_service_thread(void) const { return run_thread_; }
+
   private:
 
     void run_camera_service(void);

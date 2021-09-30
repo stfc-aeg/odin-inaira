@@ -16,14 +16,15 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     camera_opened_(false),
     grabber_opened_(false),
     camera_running_(false),
+    acquiring_(false),
+    frames_acquired_(0),
     camera_num_(0),
     grabber_timeout_ms_(10000),
     image_width_(0),
-    image_height_(0)
+    image_height_(0),
+    image_data_type_(2) // TODO Get this from common header?
 {
     DWORD pco_error;
-
-    DWORD exp_time, delay_time;
 
     LOG4CXX_INFO(logger_, "Initialising camera system");
 
@@ -45,7 +46,10 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     LOG4CXX_INFO(logger_, "Grabber reports actual size: width: "
         << image_width_ << " height: " << image_height_);
 
-    pco_error = camera_->PCO_GetDelayExposure(&delay_time, &exp_time);
+    pco_error = camera_->PCO_GetDelayExposure(
+        reinterpret_cast<DWORD *>(&(camera_config_.delay_time_)),
+        reinterpret_cast<DWORD *>(&(camera_config_.exposure_time_))
+    );
     if (pco_error != PCO_NOERROR)
     {
         LOG4CXX_ERROR(logger_, "Failed to get delay and exposure times with error code 0x"
@@ -54,7 +58,7 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
         return;
     }
     LOG4CXX_INFO(logger_, "Camera reports exposure time: "
-        << exp_time << "ms delay time: " << delay_time << "ms");
+        << camera_config_.exposure_time_ << "ms delay time: " << camera_config_.delay_time_ << "ms");
 
     camera_state_.execute_command(PcoCameraState::CommandStopRecording);
 }
@@ -71,6 +75,13 @@ void PcoCameraLinkController::execute_command(std::string& command)
         LOG4CXX_ERROR(logger_, "Failed to execute " << command << " command: " << e.what());
     }
     LOG4CXX_INFO(logger_, "Camera state is now: " << camera_state_.current_state_name());
+}
+
+void PcoCameraLinkController::update_configuration(const char* params)
+{
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "Controller updating camera config with param block: " << params);
+    camera_config_.update(params);
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
 }
 
 void PcoCameraLinkController::disconnect(void)
@@ -270,6 +281,88 @@ void PcoCameraLinkController::stop_recording(void)
     camera_running_ = false;
 }
 
+void PcoCameraLinkController::run_camera_service(void)
+{
+
+  acquiring_ = false;
+  frames_acquired_ = 0;
+
+  while (decoder_->run_camera_service_thread())
+  {
+    if (camera_running_)
+    {
+
+      if (!acquiring_)
+      {
+        std::stringstream ss;
+        if (camera_config_.num_frames_)
+        {
+            ss << camera_config_.num_frames_;
+        }
+        else
+        {
+            ss << "unlimited";
+        }
+        LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller now acquiring " << ss.str() << " frames");
+        acquiring_ = true;
+        frames_acquired_ = 0;
+      }
+
+      int buffer_id;
+      void* buffer_addr;
+      if (decoder_->get_empty_buffer(buffer_id, buffer_addr))
+      {
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Decoder got empty buffer id " << buffer_id
+          << " at addr 0x" << std::hex << (unsigned long)buffer_addr << std::dec );
+
+        void* image_buffer = reinterpret_cast<void*>(
+          reinterpret_cast<uint8_t*>(buffer_addr) + decoder_->get_frame_header_size()
+        );
+
+        if (this->acquire_image(image_buffer))
+        {
+          Inaira::FrameHeader* frame_hdr = reinterpret_cast<Inaira::FrameHeader*>(buffer_addr);
+          frame_hdr->frame_number = frames_acquired_;
+          frame_hdr->frame_width = image_width_;
+          frame_hdr->frame_height = image_height_;
+          frame_hdr->frame_data_type = image_data_type_;
+          frame_hdr->frame_size = get_image_size();
+
+          decoder_->notify_frame_ready(buffer_id, frames_acquired_);
+          frames_acquired_++;
+        }
+      }
+      else
+      {
+        LOG4CXX_WARN(logger_, "Failed to get empty buffer from queue");
+      }
+      if (camera_config_.num_frames_ && (frames_acquired_ >= camera_config_.num_frames_))
+      {
+        LOG4CXX_INFO(logger_,
+            "Camera controller completed acquisition of " << frames_acquired_ << " frames"
+        );
+        acquiring_ = false;
+        camera_state_.execute_command(PcoCameraState::CommandType::CommandStopRecording);
+      }
+      else
+      {
+        usleep(1000000); // TODO remove this hardcoded delay
+      }
+    }
+    else
+    {
+      if (acquiring_)
+      {
+        LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller finished acquiring after "
+          << frames_acquired_ << " frames");
+        acquiring_ = false;
+      }
+      usleep(1000);
+    }
+  }
+
+}
+
 std::string PcoCameraLinkController::camera_state_name(void)
 {
     return camera_state_.current_state_name();
@@ -292,8 +385,7 @@ uint32_t PcoCameraLinkController::get_image_height(void)
 
 int PcoCameraLinkController::get_image_data_type(void)
 {
-    // TODO get this from common header?
-    return 2;
+    return image_data_type_;
 }
 
 std::size_t PcoCameraLinkController::get_image_size(void)
