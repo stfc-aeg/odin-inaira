@@ -1,7 +1,7 @@
 # Control script for the INAIRA project PCO camera integration
 #
 # This script communicates with the PCO camera control integrated into the odin-data frame
-# receiver as part of the INAIRA project. The communication takes place over a ZeroMQ IPC 
+# receiver as part of the INAIRA project. The communication takes place over a ZeroMQ IPC
 # channel. The script uses the click package to implmenent a command-line interface supporting
 # multiple commands.
 #
@@ -10,9 +10,8 @@ import logging
 import sys
 import os
 import pprint
-import time
-import argparse
 import json
+import re
 try:
     from json.decoder import JSONDecodeError
 except ImportError:
@@ -33,8 +32,8 @@ from odin_data.ipc_message import IpcMessage, IpcMessageException
 
 class CameraController():
     """PCO camera control utility.
-    
-    This class implements the PCO camera control functionality for the INAIRA project, 
+
+    This class implements the PCO camera control functionality for the INAIRA project,
     communicating with the PCO controller integrated into an odin-data frame receiver decoder
     plugin via a ZeroMQ IPC channel.
     """
@@ -86,7 +85,7 @@ class CameraController():
 
     def _next_msg_id(self):
         """Return the next message ID for the control channel.
-        
+
         This internal method increments and returns the next value of the message ID sent on the
         control IPC channel.
         """
@@ -95,21 +94,54 @@ class CameraController():
 
     def send_command(self, command):
         """Send a control command to the PCO camera controller.
-        
+
         This method sends a control command to the PCO camera. This is implemented as an IPC
         configuration message with the appropriate camera command in the payload.
-        
+
         :param command: string camera control command
         """
-        params = {'command': command}
+        params = {"command": command}
         self._send_configure(params)
+
+    def send_config(self, json_path=None, json_vals=None):
+        """Send configuration parameters to the PCO camera controller.
+
+        This method sencs configuration parameters to the PCO camera controller. These can either
+        by provided in a JSON file at the specified path, which will be loaded and injected into
+        the configuration message, or as individual key-value pairs.
+
+        :param json_path: optional JSON config file path to load
+        :param json_vals: tuple of key-value pairs to parse into JSON fields
+        """
+        # Create the appropriate parameter payload to send to the controller
+        params = {"camera": {}}
+
+        # If a json file path has been specified, attempt to load that file
+        if json_path:
+            try:
+                with open(json_path) as json_file:
+                    params["camera"] = json.load(json_file)
+            except JSONDecodeError as json_error:
+                self.logger.error(f"Failed to decode JSON config file: {json_error}")
+                return
+
+        # If JSON arguments were specified, update the parameter payload with those values
+        if json_vals:
+            params["camera"].update(json_vals)
+
+        # If parameters have been specified, send the configuration command message to the camera
+        # controller, otherwise print a warning
+        if params["camera"]:
+            self._send_configure(params)
+        else:
+            self.logger.warning("No camera configuration parameters specified, not sending command")
 
     def _send_configure(self, params=None):
         """Send a configuration command to the PCO camera controller.
-        
+
         This internal method sends a configuration command to the PCO camera controller, with
         the specified parameter dict as a payload.
-        
+
         :param params: dictionary of parameters to add to the IPC channel message.
         """
         reply = self._send_cmd("configure", params)
@@ -117,7 +149,7 @@ class CameraController():
 
     def get_status(self):
         """Get the status of the PCO camera controller.
-        
+
         This method send a status request command to the PCO camera controller and displays
         the response as formatted JSON.
         """
@@ -126,11 +158,11 @@ class CameraController():
 
     def _send_cmd(self, cmd, params=None):
         """Send an IPC command message to the PCO camera controller.
-        
+
         This internal method sends an IPC command message to the PCO camera controller, with the
         specified parameter dict as the payload.
 
-        :param cmd: string command 
+        :param cmd: string command
         """
         cmd_msg = IpcMessage("cmd", cmd, id=self._next_msg_id())
         if params:
@@ -147,9 +179,9 @@ class CameraController():
 
     def format_json(self, msg):
         """Format JSON data for display.
-        
+
         This method formats JSON-like dict data for display. The data can be supplied directly or
-        passed as an IPC message. If the pygments package is installed, that will be used to 
+        passed as an IPC message. If the pygments package is installed, that will be used to
         generate a colour, formatted output, otherwise the default PrettyPrinter will be used.
 
         :param msg: JSON-like dict or IPC message to display
@@ -168,8 +200,47 @@ class CameraController():
         return formatted
 
 
+def parse_json_args(ctx, _, values):
+    """Parse argument key-value pairs into JSON-like parameters.
+
+    This function is used as a click argument callback to parse arguments to the
+    config command from key-value pairs with JSON-like syntax into a dict of
+    configuration parameters. The key-value parsing supports simple string parameters
+    or the HTTPie-like := assignment of raw JSON types.
+
+    :param ctx: click context
+    :param _: ignored (click passes in the parameter object)
+    :param values: tuple of argument values specified at the command line
+    :return: dict of parsed values
+    """
+    # Define a mapping of key-value separators to value parsing
+    keyval_parsers = {
+        '=': lambda val: val,
+        ':=': lambda val: json.loads(val)
+    }
+
+    # Complile a regular expression to allow input values to be split on the appropriae
+    # key-value separators
+    parse_exp = re.compile('(' + '|'.join(keyval_parsers.keys()) + ')')
+
+    parsed_args = {}
+
+    # Iterator over the argument values, splitting them into key, separator and value and
+    # parsing as appropriate. Append parsed valyes to the parsed_args dict.
+    for json_val in values:
+        try:
+            (key, sep, val) = re.split(parse_exp, json_val)
+            parsed_args[key] = keyval_parsers[sep](val)
+        except ValueError:
+            ctx.obj["controller"].logger.warning(
+                f"Ignoring incorrectly formatted parameter argument {json_val}"
+            )
+
+    return parsed_args
+
 @click.group()
-@click.option('--ctrl', default="tcp://127.0.0.1:5060", help="Camera control channel endpoint URL")
+@click.option("--ctrl", default="tcp://127.0.0.1:5060", show_default=True,
+    help="Camera control channel endpoint URL", metavar="URL")
 @click.pass_context
 def cli(ctx, ctrl):
     """Control a PCO camera integrated into the odin-data frame receiver.
@@ -177,74 +248,93 @@ def cli(ctx, ctrl):
     :param ctx: click context
     :param ctrl: ZeroMQ endpoint URL for the control channel
     """
-    ctx.obj['controller'] = CameraController(ctrl)
+    ctx.obj["controller"] = CameraController(ctrl)
 
 @cli.command()
 @click.pass_context
 def connect(ctx):
     """Connect to the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("connect")
+    ctx.obj["controller"].send_command("connect")
 
 @cli.command()
 @click.pass_context
 def disconnect(ctx):
     """Disconnect from the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("disconnect")
+    ctx.obj["controller"].send_command("disconnect")
 
 @cli.command()
 @click.pass_context
 def arm(ctx):
     """Arm the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("arm")
+    ctx.obj["controller"].send_command("arm")
 
 @cli.command()
 @click.pass_context
 def disarm(ctx):
     """Disarm the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("disarm")
+    ctx.obj["controller"].send_command("disarm")
 
 @cli.command()
 @click.pass_context
 def start(ctx):
     """Start frame acquisition on the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("start")
+    ctx.obj["controller"].send_command("start")
 
 @cli.command()
 @click.pass_context
 def stop(ctx):
     """Stop frame acquisition on the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].send_command("stop")
+    ctx.obj["controller"].send_command("stop")
+
+@cli.command()
+@click.option("--json", "-j", type=click.Path(exists=True),
+    help="Specify a JSON file of camera configuration parameters to send")
+@click.argument('vals', nargs=-1, callback=parse_json_args)
+@click.pass_context
+def config(ctx, json, vals):
+    """Send configuration parameters to the PCO camera.
+
+    Parameters can be loaded from the specified JSON file with the --json/-j option,
+    or specified as arguments in key-value pair form. The HTTPie syntax for JSON is
+    supported: key=value will be treated as string parameters, key:=value will be
+    intepreted as 'raw' JSON values, e.g. numbers, booleans, arrays or objects.
+    \f
+
+    :param ctx: click context
+    :param vals: tuple of key-value pairs
+    """
+    ctx.obj["controller"].send_config(json_path=json, json_vals=vals)
 
 @cli.command()
 @click.pass_context
 def status(ctx):
     """Get the status of the PCO camera.\f
-    
+
     :param ctx: click context
     """
-    ctx.obj['controller'].get_status()
+    ctx.obj["controller"].get_status()
 
 def main():
     """Main entry point for the camera control utility."""
     cli(obj={})
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
