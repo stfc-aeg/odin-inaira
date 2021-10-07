@@ -16,8 +16,6 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     camera_opened_(false),
     grabber_opened_(false),
     camera_running_(false),
-    acquiring_(false),
-    frames_acquired_(0),
     camera_num_(0),
     grabber_timeout_ms_(10000),
     image_width_(0),
@@ -27,6 +25,9 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     DWORD pco_error;
 
     LOG4CXX_INFO(logger_, "Initialising camera system");
+
+    camera_status_.acquiring_ = false;
+    camera_status_.frames_acquired_ = 0;
 
     camera_state_.initiate();
     camera_state_.execute_command(PcoCameraState::CommandConnect);
@@ -293,15 +294,15 @@ void PcoCameraLinkController::stop_recording(void)
 void PcoCameraLinkController::run_camera_service(void)
 {
 
-  acquiring_ = false;
-  frames_acquired_ = 0;
+  camera_status_.acquiring_ = false;
+  camera_status_.frames_acquired_ = 0;
 
   while (decoder_->run_camera_service_thread())
   {
     if (camera_running_)
     {
 
-      if (!acquiring_)
+      if (!camera_status_.acquiring_)
       {
         std::stringstream ss;
         if (camera_config_.num_frames_)
@@ -313,8 +314,8 @@ void PcoCameraLinkController::run_camera_service(void)
             ss << "unlimited";
         }
         LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller now acquiring " << ss.str() << " frames");
-        acquiring_ = true;
-        frames_acquired_ = 0;
+        camera_status_.acquiring_ = true;
+        camera_status_.frames_acquired_ = 0;
       }
 
       int buffer_id;
@@ -331,26 +332,26 @@ void PcoCameraLinkController::run_camera_service(void)
         if (this->acquire_image(image_buffer))
         {
           Inaira::FrameHeader* frame_hdr = reinterpret_cast<Inaira::FrameHeader*>(buffer_addr);
-          frame_hdr->frame_number = frames_acquired_;
+          frame_hdr->frame_number = camera_status_.frames_acquired_;
           frame_hdr->frame_width = image_width_;
           frame_hdr->frame_height = image_height_;
           frame_hdr->frame_data_type = image_data_type_;
           frame_hdr->frame_size = get_image_size();
 
-          decoder_->notify_frame_ready(buffer_id, frames_acquired_);
-          frames_acquired_++;
+          decoder_->notify_frame_ready(buffer_id, camera_status_.frames_acquired_);
+          camera_status_.frames_acquired_++;
         }
       }
       else
       {
         LOG4CXX_WARN(logger_, "Failed to get empty buffer from queue");
       }
-      if (camera_config_.num_frames_ && (frames_acquired_ >= camera_config_.num_frames_))
+      if (camera_config_.num_frames_ && (camera_status_.frames_acquired_ >= camera_config_.num_frames_))
       {
         LOG4CXX_INFO(logger_,
-            "Camera controller completed acquisition of " << frames_acquired_ << " frames"
+            "Camera controller completed acquisition of " << camera_status_.frames_acquired_ << " frames"
         );
-        acquiring_ = false;
+        camera_status_.acquiring_ = false;
         camera_state_.execute_command(PcoCameraState::CommandType::CommandStopRecording);
       }
       else
@@ -360,11 +361,11 @@ void PcoCameraLinkController::run_camera_service(void)
     }
     else
     {
-      if (acquiring_)
+      if (camera_status_.acquiring_)
       {
         LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller finished acquiring after "
-          << frames_acquired_ << " frames");
-        acquiring_ = false;
+          << camera_status_.frames_acquired_ << " frames");
+        camera_status_.acquiring_ = false;
       }
       usleep(1000);
     }

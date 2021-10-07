@@ -60,8 +60,6 @@ namespace FrameReceiver
 
     std::string camera_state_name(void);
     bool camera_running(void) { return camera_running_; }
-    const bool is_acquiring(void) const { return acquiring_; }
-    const unsigned long frames_acquired(void) const { return frames_acquired_; }
 
   private:
 
@@ -81,8 +79,6 @@ namespace FrameReceiver
     bool camera_opened_;
     bool grabber_opened_;
     volatile bool camera_running_;
-    volatile bool acquiring_;
-    volatile unsigned long frames_acquired_;
 
     int camera_num_;
     int grabber_timeout_ms_;
