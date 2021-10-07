@@ -8,7 +8,6 @@ get result from model (store in... */
 
 #include <InairaMLPlugin.h>
 #include "version.h"
-#include <cppflow.h>  /*TODO: Remove when ready*/
 #include "Json.h"
 
 namespace FrameProcessor
