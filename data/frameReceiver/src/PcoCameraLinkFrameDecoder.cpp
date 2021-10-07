@@ -16,9 +16,7 @@
 using namespace FrameReceiver;
 
 PcoCameraLinkFrameDecoder::PcoCameraLinkFrameDecoder() :
-    FrameDecoderCameraLink(),
-    acquiring_(false),
-    frames_acquired_(0)
+    FrameDecoderCameraLink()
 {
 
     this->logger_ = Logger::getLogger("FR.PcoCLFrameDecoder");
@@ -118,6 +116,14 @@ void PcoCameraLinkFrameDecoder::handle_ctrl_channel(void)
             this->configure(ctrl_req, ctrl_reply);
             break;
 
+          case IpcMessage::MsgValCmdRequestConfiguration:
+            LOG4CXX_DEBUG_LEVEL(3, logger_,
+              "Got camera control read configuration request from client " << client_identity
+              << " : " << ctrl_req_encoded
+            );
+            this->request_configuration(std::string(""), ctrl_reply);
+            break;
+
           case IpcMessage::MsgValCmdStatus:
             LOG4CXX_DEBUG_LEVEL(3, logger_,
               "Got camera control status request from client " << client_identity
@@ -165,7 +171,9 @@ void PcoCameraLinkFrameDecoder::configure(
 {
   if (config_msg.has_param("camera"))
   {
-    controller_->update_configuration(config_msg.encode_params("camera"));
+    ParamContainer::Document config_params;
+    config_msg.encode_params(config_params, "camera");
+    controller_->update_configuration(config_params);
   }
 
   if (config_msg.has_param("command"))
@@ -176,19 +184,36 @@ void PcoCameraLinkFrameDecoder::configure(
   }
 }
 
+void PcoCameraLinkFrameDecoder::request_configuration(
+  const std::string param_prefix, OdinData::IpcMessage& config_reply
+)
+{
+
+  // Call the base class method to populate parameters
+  FrameDecoderCameraLink::request_configuration(param_prefix, config_reply);
+
+  //rapidjson::Document camera_config;
+  ParamContainer::Document camera_config;
+  controller_->get_configuration(camera_config);
+  config_reply.update(camera_config);
+}
+
 void PcoCameraLinkFrameDecoder::get_status(const std::string param_prefix,
     OdinData::IpcMessage& status_msg)
 {
 
   status_msg.set_param(param_prefix + "name", std::string("PcoCameraLinkFrameDecoder"));
 
-  std::string camera_prefix = param_prefix + "camera/";
-  status_msg.set_param(camera_prefix + "state", controller_->camera_state_name());
+  // std::string camera_prefix = param_prefix + "camera1/";
+  // status_msg.set_param(camera_prefix + "state", controller_->camera_state_name());
 
-  std::string acq_prefix = param_prefix + "acquisition/";
-  status_msg.set_param(acq_prefix + "acquiring", controller_->is_acquiring());
-  status_msg.set_param(acq_prefix + "frames_acquired", controller_->frames_acquired());
+  // std::string acq_prefix = param_prefix + "acquisition1/";
+  // status_msg.set_param(acq_prefix + "acquiring", controller_->is_acquiring());
+  // status_msg.set_param(acq_prefix + "frames_acquired", controller_->frames_acquired());
 
+  ParamContainer::Document camera_status;
+  controller_->get_status(camera_status, param_prefix);
+  status_msg.update(camera_status);
 }
 
 

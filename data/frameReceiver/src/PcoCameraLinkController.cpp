@@ -28,8 +28,6 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
 
     LOG4CXX_INFO(logger_, "Initialising camera system");
 
-    std::cout << "Config has num frames " << camera_config_.num_frames_ << std::endl;
-
     camera_state_.initiate();
     camera_state_.execute_command(PcoCameraState::CommandConnect);
     camera_state_.execute_command(PcoCameraState::CommandArm);
@@ -77,11 +75,22 @@ void PcoCameraLinkController::execute_command(std::string& command)
     LOG4CXX_INFO(logger_, "Camera state is now: " << camera_state_.current_state_name());
 }
 
-void PcoCameraLinkController::update_configuration(const char* params)
+void PcoCameraLinkController::update_configuration(ParamContainer::Document& params)
 {
-    LOG4CXX_DEBUG_LEVEL(2, logger_, "Controller updating camera config with param block: " << params);
     camera_config_.update(params);
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
+}
+
+void PcoCameraLinkController::get_configuration(ParamContainer::Document& params)
+{
+    camera_config_.encode(params, "camera");
+}
+
+void PcoCameraLinkController::get_status(ParamContainer::Document& params,
+    const std::string param_prefix)
+{
+    camera_status_.camera_state_name_ = camera_state_.current_state_name();
+    camera_status_.encode(params, param_prefix);
 }
 
 void PcoCameraLinkController::disconnect(void)

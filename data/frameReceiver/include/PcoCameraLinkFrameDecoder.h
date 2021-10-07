@@ -38,6 +38,7 @@ namespace FrameReceiver
 
     void handle_ctrl_channel(void);
     void configure(OdinData::IpcMessage& config_msg, OdinData::IpcMessage& config_reply);
+    void request_configuration(const std::string param_prefix, OdinData::IpcMessage& config_reply);
     void get_status(const std::string param_prefix, OdinData::IpcMessage& status_msg);
 
     const bool run_camera_service_thread(void) const { return run_thread_; }
@@ -46,9 +47,6 @@ namespace FrameReceiver
 
     void run_camera_service(void);
     boost::scoped_ptr<PcoCameraLinkController> controller_;
-
-    bool acquiring_;
-    unsigned long frames_acquired_;
 
   };
 
