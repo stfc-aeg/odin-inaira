@@ -43,4 +43,12 @@ function arm_disarm(){
         document.getElementById("armDisarm").className = "button_green";
         console.log("Change Arm / Disarm to Green");
     }
+
+    /**
+     * Need to edit a json configuration that can be sent to the adapter then to the camera..
+     * 
+     * using a putJSON ? 
+     * Set up parameter tree in python
+     * 
+     */
 }

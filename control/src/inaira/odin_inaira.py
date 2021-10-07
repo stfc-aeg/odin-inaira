@@ -164,6 +164,8 @@ class OdinInaira(object):
     def send_camera_configuration():
         return False
 
+    
+
     def cleanup(self):
         for channel in self.ipc_channels:
             channel.cleanup()
