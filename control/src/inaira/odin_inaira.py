@@ -29,24 +29,14 @@ from odin_data.ipc_channel import IpcChannelException
 
 from .sub_socket import SubSocket
 
-# TODO Another in line: 58
 
 class OdinInaira(object):
 
     executor = futures.ThreadPoolExecutor(max_workers=1)
 
-<<<<<<< HEAD
-    def __init__(self, endpoints):
+    def __init__(self, endpoints, live_image):
         """
         Initialise the OdinInaira object.     
-=======
-    def __init__(self, endpoints, live_image):
-        """Initialise the OdinInaira object.        # Roll past 100 array to 1 to the right ->
-        self.past_100 = np.roll(self.past_100, 1, axis=0)
-
-        # Set replace first item in past 100
-        self.past_100[0] = [self.frame_number, self.frame_classification, self.frame_certainty]
->>>>>>> fa3ece52b150c3104d04509d33d7585b5c8b0c00
 
         This constructor initlialises the OdinInaira object, building a parameter tree and
         launching a background task if enabled
@@ -56,7 +46,6 @@ class OdinInaira(object):
 
         # Save and initialise argumenets
         self.frame_process_time = None
-<<<<<<< HEAD
         self.total_process_time = None
         self.pass_ratio = None
         self.good_frames = None
@@ -66,11 +55,8 @@ class OdinInaira(object):
         self.process_time = None
         self.avg_process_time = None
         self.total_frames = None
-=======
+
         self.process_live_image = live_image
-        self.test_array = [None]*100
-        self.frame_data = None
->>>>>>> fa3ece52b150c3104d04509d33d7585b5c8b0c00
 
         # Store initialisation time
         self.init_time = time.time()
@@ -78,23 +64,26 @@ class OdinInaira(object):
         # Get package version information
         version_info = get_versions()
 
-<<<<<<< HEAD
+        self.adapters = {}
+
         frame_data_parameters = ParameterTree({
             'frame_number' : (lambda: self.frame_number, None),
             'process_time' : (lambda: self.process_time, None),
             'classification' : (lambda: self.classification, None),
             'certainty' : (lambda: self.certainty, None)
         })
-=======
-        self.adapters = {}
-        # Build a parameter tree for the frame data
-        # frame_data_parameter = ParameterTree({
-        #     'frame_number': (lambda: self.frame_number, None),
-        #     'frame_process_time': (lambda: self.frame_process_time, None),
-        #     'frame_classification': (lambda: self.frame_classification, None),
-        #     'frame_certainty': (lambda: self.frame_certainty, None)
+
+        experiment_data_parameters = ParameterTree({
+            'avg_processing_time' : (lambda: self.avg_process_time, None),
+            'pass_ratio' : (lambda: self.pass_ratio, None),
+            'total_frames' : (lambda: self.total_frames, None)
+        })
+
+        # camera_control_parameters = ParameterTree({
+        #     'start_stop' : (),
+        #     'arm_disarm' : (),
+        #     'cam_frame_rate' : (),
         # })
->>>>>>> fa3ece52b150c3104d04509d33d7585b5c8b0c00
 
         # Store all information in a parameter tree
         self.param_tree = ParameterTree({
@@ -102,9 +91,9 @@ class OdinInaira(object):
             'tornado_version': tornado.version,
             'server_uptime': (self.get_server_uptime, None),
             'frame' : frame_data_parameters,
-            'avg_processing_time' : (lambda: self.avg_process_time, None),
-            'pass_ratio' : (lambda: self.pass_ratio, None),
-            'total_frames' : (lambda: self.total_frames, None)
+            #camera_controls' : camera_control_parameters,
+            'experiment' : experiment_data_parameters
+            
         })
 
         logging.debug('Parameter tree initialised')
@@ -135,6 +124,12 @@ class OdinInaira(object):
     def get_frame_updates(self, msg):
         frame_data = json.loads(msg[0])
 
+        if self.process_live_image:
+            logging.info("Sending Image data from Inaira to Live View")
+            liveview_data = msg[1:]
+            liveview_adapter = self.adapters['live_view']
+            liveview_adapter.live_viewer.create_image_from_socket(liveview_data)
+
         self.frame_number = frame_data['frame_number']
         self.total_frames = self.frame_number + 1
         self.process_time = frame_data['process_time']
@@ -158,19 +153,16 @@ class OdinInaira(object):
 
         #Do the maths for the avg_process_time
 
-<<<<<<< HEAD
         self.total_process_time += self.process_time
         self.avg_process_time = self.total_process_time/self.total_frames
         
         logging.debug(" Avg Process Time = " + str(self.avg_process_time) + "ms")
-=======
-        if self.process_live_image:
-            logging.info("Sending Image data from Inaira to Live View")
-            liveview_data = msg[1:]
-            liveview_adapter = self.adapters['live_view']
-            liveview_adapter.live_viewer.create_image_from_socket(liveview_data)
 
->>>>>>> fa3ece52b150c3104d04509d33d7585b5c8b0c00
+    def get_camera_configuration():
+        return False
+    
+    def send_camera_configuration():
+        return False
 
     def cleanup(self):
         for channel in self.ipc_channels:

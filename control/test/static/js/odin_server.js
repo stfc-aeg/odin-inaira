@@ -21,3 +21,26 @@ function update_api_adapters() {
         $('#api-adapters').html(adapter_list);
     });
 }
+
+function start_stop() {
+    if (document.getElementById("startStop").className == "button_green") {
+        document.getElementById("startStop").className = "button_red";
+        console.log("Change Start / Stop to Red");
+    } 
+    else {
+        document.getElementById("startStop").className = "button_green";
+        console.log("Change Start / Stop to Green");
+    }
+    
+}
+
+function arm_disarm(){
+    if (document.getElementById("armDisarm").className == "button_green") {
+        document.getElementById("armDisarm").className = "button_red";
+        console.log("Change Arm / Disarm to Red");
+    } 
+    else {
+        document.getElementById("armDisarm").className = "button_green";
+        console.log("Change Arm / Disarm to Green");
+    }
+}

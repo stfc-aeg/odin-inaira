@@ -29,8 +29,6 @@ img {
     height: auto;
 }
 
-
-
 .row {clear: both;}
 
 .column{
@@ -47,6 +45,11 @@ img {
 
 .screen-full{ width: 100%}
 
+.button_red{background-color: red;}
+
+.button_green{background-color: greenyellow;}
+
+/* Already here */
 .odin-server {
     padding: 10px 15px;
     text-align: center;
@@ -123,3 +126,4 @@ img {
     display: table;
     clear: both;
 }
+
