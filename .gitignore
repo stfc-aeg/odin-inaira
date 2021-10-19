@@ -135,3 +135,5 @@ dmypy.json
 
 # Cppflow Stuff
 data/frameProcessor/include/cppflow
+data/common/include/cppflow
+data/common/include/libtensorflow2
