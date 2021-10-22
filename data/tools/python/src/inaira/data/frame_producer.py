@@ -121,103 +121,115 @@ class FrameProducer():
         return np.dot(img[...,:3],[0.2989, 0.5870, 0.1140])
 
     def run(self, frames, fps, imgs_path):
-        """Run the frame producer main event loop."""
 
-        # Check if config from camera emulator is not None
-        if frames == None:
-            frames = self.config.frames
+        try:
+        #region
+            """Run the frame producer main event loop."""
 
-        if fps == None:
-            fps = self.config.frames_per_second
+            # Check if config from camera emulator is not None
+            if frames == None:
+                frames = self.config.frames
 
-        if imgs_path == None:
-            imgs_path = self.config.testfile_path
+            if fps == None:
+                fps = self.config.frames_per_second
+
+            if imgs_path == None:
+                imgs_path = self.config.testfile_path
 
 
-        # Allow the IPC channels to connect and then notify the frame processor of the buffer
-        # configuration
-        time.sleep(1.0)
-        self.notify_buffer_config()
+            # Allow the IPC channels to connect and then notify the frame processor of the buffer
+            # configuration
+            time.sleep(1.0)
+            self.notify_buffer_config()
 
-        #Load the test images 
+            #Load the test images 
 
-        totalimages = 0
+            totalimages = 0
 
-        # Number of files in directory
-        for files in walk(imgs_path):
-            for Files in files:
-                totalimages += 1
+            # Number of files in directory
+            for files in walk(imgs_path):
+                for Files in files:
+                    totalimages += 1
 
-        # Loop over the specified number of frames and transmit them
-        self.logger.info("Sending %d frames to processor\n", self.config.frames)
+            # Loop over the specified number of frames and transmit them
+            self.logger.info("Sending %d frames to processor\n", frames)
 
-        frame = 0
+            self.frame = 0
+            self.send_frames = True
 
-        while self.send_frames:
+            while self.send_frames:
 
-            try:
-                # Frame producer code here 
-                self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
+                try:
+                    # Frame producer code here 
+                    self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", self.frame)
 
-                # Set image path based on frame number
-                testimage = listdir(imgs_path)[frame%totalimages]
+                    # Set image path based on frame number
+                    testimage = listdir(imgs_path)[self.frame%totalimages]
 
-                # Load image
-                vals = io.imread(join(imgs_path,testimage))
+                    # Load image
+                    vals = io.imread(join(imgs_path,testimage))
 
-                # Is the image RGB or Grayscale?
-                if (len(vals.shape) >= 3):
-                    # Convert to Grayscale
-                    vals = self.rgb2gray(vals)
-                    
-                    # Correct data type
-                    vals = vals.astype(np.uint8)
+                    # Is the image RGB or Grayscale?
+                    if (len(vals.shape) >= 3):
+                        # Convert to Grayscale
+                        vals = self.rgb2gray(vals)
+                        
+                        # Correct data type
+                        vals = vals.astype(np.uint8)
 
-                # Debugging of image loading
-                self.logger.debug("The filename is " + testimage)
-                self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
+                    # Debugging of image loading
+                    self.logger.debug("The filename is " + testimage)
+                    self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
 
-                # Pop the first free buffer off the queue
-                # TODO deal with empty queue??
-                buffer = self.free_buffer_queue.get()
+                    # Pop the first free buffer off the queue
+                    # TODO deal with empty queue??
+                    buffer = self.free_buffer_queue.get()
 
-                # Split image shape from (x, y) into x and y
-                imageshape = vals.shape
-                imagewidth = imageshape[0]
-                imageheight = imageshape[1]
-                self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
+                    # Split image shape from (x, y) into x and y
+                    imageshape = vals.shape
+                    imagewidth = imageshape[0]
+                    imageheight = imageshape[1]
+                    self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
 
-                # What is the dtype outputting
-                self.logger.debug("Data Type: " + str(vals.dtype))
-                self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
+                    # What is the dtype outputting
+                    self.logger.debug("Data Type: " + str(vals.dtype))
+                    self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
 
-                # Create struct with these parameters for the header
-                # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
-                header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
+                    # Create struct with these parameters for the header
+                    # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
+                    header = struct.pack("iiiii", self.frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
 
-                # Copy the image nparray directly into the buffer as bytes
-                self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
-                self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
+                    # Copy the image nparray directly into the buffer as bytes
+                    self.logger.debug("Filling frame %d into buffer %d", self.frame, buffer)
+                    self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
 
-                # Notify the processor that the frame is ready in the buffer
-                self.notify_frame_ready(frame, buffer)
+                    # Notify the processor that the frame is ready in the buffer
+                    self.notify_frame_ready(self.frame, buffer)
 
-                self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+                    self.logger.debug("----- Creation of frame %d complete -----\n\n", self.frame)
 
-                # Sent frames at a set frame rate using config
-                time.sleep(1/fps)
+                    # Sent frames at a set frame rate using config
+                    time.sleep(1/fps)
 
-                # Next frame
-                frame += 1
+                    # Next frame
+                    self.frame += 1
 
-                # Are all frames sent?
-                if (frame == (frames)):
+                    # Are all frames sent?
+                    if (self.frame == (frames)):
+                        self.send_frames = False
+
+                except KeyboardInterrupt:
                     self.send_frames = False
 
-            except KeyboardInterrupt:
-                self.send_frames = False
+            
+            #endregion
+        except Exception:
+            self.send_frames = False
+            self.logger.warning("Error in frame producer")
 
         self.logger.info("Frame producer stopping")
+       
+        
 
     def stop(self):
         # Clear the run flag and wait for the release processing thread to terminate

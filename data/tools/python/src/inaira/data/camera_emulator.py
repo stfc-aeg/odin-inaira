@@ -1,6 +1,8 @@
 
 import logging
+from operator import truediv
 import os
+import re
 import sys
 import threading
 import queue
@@ -15,6 +17,9 @@ from zmq.utils.strtypes import cast_bytes
 from odin_data.ipc_channel import IpcChannel, IpcChannelException
 from odin_data.ipc_message import IpcMessage, IpcMessageException
 
+#TODO
+# - State Machine
+# - Correct IPC Message
 
 class CameraEmulator:
 
@@ -44,17 +49,36 @@ class CameraEmulator:
         self._run_server = False
 
         self.frame_producer = FrameProducer("config/producer_test.yml")
+        
 
-        # Placeholder config storage
-        self.armed = False
-        self.connected = False
-        self.running = False
-        self.response_message = None
+        # State Maching variables
+        self.state = 0
+        self.states = ["disconnected",  # Client is not connected.                                  [0]
+                        "connected",    # Client is connected                                       [1]
+                        "armed",        # Client is connected. Camera Armed.                        [2]
+                        "running"       # Client is connected. Camera Armed. Camera Running.        [3]
+                        ]
 
-        # Config storage
-        self.frames = None
-        self.fps = None
-        self.imgs_path = None
+
+    
+        # Camera Info
+        self.camera_info = {
+                                "name" : "PCO Camera Emulator",
+                                "acquisition" : {
+                                                "acquiring" : False,
+                                                "frames_acquired" : 0
+                                                },
+                                "camera" : {
+                                            "state": "disconnected"
+                                            },
+                                "config" : {
+                                            "number_of_frames" : 0,
+                                            "delay_time_ms" : 1000,
+                                            "exposure_time_ms" : 1000,
+                                            "images_file_path" : None
+                                            }
+                            }
+
 
     def run(self):
 
@@ -63,159 +87,162 @@ class CameraEmulator:
         self.logger.info(f"Binding control IPC channel to endpoint {self.endpoint}")
         self.ctrl_channel.bind()
 
-        """Run the server socket task loop."""
-        while self._run_server:
 
-            (client_id, request) = self.ctrl_channel.recv()
+        # Handle keboard interrupt
+        try:
 
-            self.logger.info(f"Received request from client ID {client_id}: {request[0]}")
-            ctrl_request = IpcMessage(from_str=request[0])
+            """Run the server socket task loop."""
+            while self._run_server:
 
-            ctrl_request_type = ctrl_request.get_msg_type()
-            ctrl_request_val = ctrl_request.get_msg_val()
-            ctrl_request_id = ctrl_request.get_msg_id()
-            ctrl_request_command = ctrl_request.get_params().get("command")
-            ctrl_request_ok = True
+                (client_id, request) = self.ctrl_channel.recv()
 
-            if ctrl_request_type == 'cmd':
+                self.logger.info(f"Received request from client ID {client_id}: {request[0]}")
+                ctrl_request = IpcMessage(from_str=request[0])
 
-                if ctrl_request_val == 'status':
-                    self.logger.info(f"Got get status request from client {client_id}")
-                elif ctrl_request_val == "request_configuration":
-                    self.logger.info(f"Got get configuration request from client {client_id}")
-                elif ctrl_request_val == "configure":
-                    self.logger.info(f"Got instruction request from client {client_id}")
+                ctrl_request_type = ctrl_request.get_msg_type()
+                ctrl_request_val = str(ctrl_request.get_msg_val())
+                ctrl_request_id = ctrl_request.get_msg_id()
+                ctrl_request_command = ctrl_request.get_params().get("command")
+                ctrl_request_ok = True
+
+                if ctrl_request_type == 'cmd':
+
+                    if ctrl_request_val == 'status':
+                        self.logger.info(f"Got get status request from client {client_id}")
+                    elif ctrl_request_val == "request_configuration":
+                        self.logger.info(f"Got get configuration request from client {client_id}")
+                    elif ctrl_request_val == "configure":
+                        self.logger.info(f"Got instruction request from client {client_id}")
+                    else:
+                        # Unrecognised command value in request
+                        ctrl_request_ok = False
+
                 else:
-                    # Unrecognised command value in request
+                    # Unrecognised request type
                     ctrl_request_ok = False
 
-            else:
-                # Unrecognised request type
-                ctrl_request_ok = False
+                # Handle the command request
+                if ctrl_request_ok:
+                    ctrl_request_ok = state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_request_val)
+                    self.camera_info["camera"]["state"] = self.states[self.state]
 
-            # Hande the command request
-            if ctrl_request_ok:
 
-                self.response_message = "No response given"
+                # Build a response
+                ctrl_response_type = 'ack' if ctrl_request_ok else 'nack'
+                ctrl_response = IpcMessage(
+                    msg_type=ctrl_response_type, msg_val=ctrl_request_val, id=ctrl_request_id
+                )
 
-                # Camera must be connected to before config can be sent or status can be requested
-                # Camera must be configured before it can be armed
-                # Camera must be connected too and armed before it can be started
-                
-                if ctrl_request_command == "status":
-                    self.logger.info(f"Client: {client_id} has requested camera status")
-                    self.response_message = "Camera status:"
+                # If there is no get request no params need to be sent.
+                if ctrl_request_val == "status":
+                    # Set the params for the status
+                    self.camera_info["acquisition"]["frames_acquired"] = self.frame_producer.frame
+                    ctrl_response.set_param("name", self.camera_info["name"])
+                    ctrl_response.set_param("acquisition", self.camera_info["acquisition"])
+                    ctrl_response.set_param("camera", self.camera_info["camera"])    
 
-                if ctrl_request_command == "config":
-                    # Get the data out of the JSON Config message
-                    config = ctrl_request.get_param("camera")
 
-                    self.frames = config["frames"]
-                    self.fps = config["frame_rate"]
-                    self.imgs_path = config["images_path"]
+                if ctrl_request_val == "request_configuration":
+                    self.logger.debug("I got to here!")
+                    
+                    # Set the params for the config
+                    self.logger.info("Returning camera config")
+                    ctrl_response.set_param("enabled_packet_logging", False)
+                    ctrl_response.set_param("frame_timeout_ms", 10)
+                    ctrl_response.set_param("camera", self.camera_info["config"])
 
-                    self.response_message = f"Client: {client_id} has sent configuration to camera"
+                # Encode and return the response to the client
+                response = [elem.encode('utf-8') for elem in (client_id, ctrl_response.encode())]
+                self.ctrl_channel.send_multipart(response)
 
-                # Act Upon Request
-                elif ctrl_request_command == "connect":
-                    # Emulate connecting to the camera
-                    if self.connected:
-                        self.logger.warning(f"Client: {client_id} is already connected to camera")
-                        self.response_message = "Client is already connected to camera"
-                    else:
-                        self.connected = True
-                        self.logger.info(f"Client: {client_id} connected to the camera")
-                        self.response_message = "Client has connected to the camera"
+        except KeyboardInterrupt:
+            # Stop the frame producer if it is running
+            if self.state == 3:
+                self.frame_producer_thread.join()
+                self.frame_producer.send_frames = False
 
-                elif ctrl_request_command == "disconnect":
-                    # Emulate disconnecting from the camera
-                    if self.connected:
-                        self.connected = False
-                        self.logger.info(f"Client: {client_id} has disconnected from the camera")
-                        self.response_message = "Client has disconnected from the camera"
-                    else:
-                        self.logger.warning(f"Client: {client_id} is already disconnected from the camera")
-                        self.response_message = "Client is already disconnected from the camera"
+            # Shut down the process release and clear memory buffer
+            self.frame_producer_stop_thread = threading.Thread(target=self.frame_producer.stop)
+            self.frame_producer_stop_thread.start()
+            self.frame_producer_stop_thread.join()
+
+def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_request_val):
+    # State Machine
+                    # Can only go +- 1 state. NO JUMPS
+
+                    # Camera must be connected before status or config can be requested or sent
+
+                    # Connect to the camera
+                    if (ctrl_request_command == "connect") and (self.state == 0):
+                        self.state = 1
+                        self.logger.info(f"Client: {client_id} has connected to the camera")
+                        return True
                         
 
-                elif ctrl_request_command == "arm":
-                    if self.connected:
-                        if self.armed:
-                            self.logger.warning("The camera is already armed")
-                            self.response_message = "Client has already armed the camera"
-                        else:
-                            self.armed = True
-                            self.logger.info(f"Client: {client_id} has armed the camera")
-                            self.response_message = "Client has armed the camera"
-                    else:
-                        self.logger.warning(f"Client: {client_id} is not connected to the camera")
-                        self.response_message = "Client is not connected to the camera"
+                    # Disconnect from the camera
+                    elif (ctrl_request_command == "disconnect") and (self.state == 1):
+                        self.state = 0
+                        self.logger.info(f"Client: {client_id} has disconnected from the camera")
+                        return True
 
-                elif ctrl_request_command == "disarm":
-                    if self.connected:
-                        if self.armed:
-                            self.armed = False
-                            self.logger.info(f"Client: {client_id} has disarmed the camera")
-                            self.response_message = "Client has disarmed the camera"
-                        else:
-                            self.logger.warning("The camera is already disarmed")
-                            self.response_message = "The camera is not armed"
-                    else:
-                        self.logger.warning(f"Client: {client_id} is not connected to the camera")
-                        self.response_message = "Client is not connected to the camera"
+                    # Arm the camera
+                    elif (ctrl_request_command == "arm") and (self.state == 1):
+                        self.state = 2
+                        self.logger.info(f"Client: {client_id} has armed the camera")
+                        return True
 
-                elif ctrl_request_command == "start":
-                    if self.connected & self.armed:
-                        if self.running:
-                            self.logger.warning(f"Client: {client_id} has already started the camera")
-                            self.response_message = "Client has already started the camera"
-                        else:
-                            self.logger.info("Starting Frame Producer")
-                            try:
-                                self.frame_producer.send_frames = True
-                                self.frame_producer_thread = threading.Thread(target=self.frame_producer.run, args=(self.frames, self.fps, self.imgs_path))
-                                self.frame_producer_thread.start()
-                            except:
-                                self.logger.error("Error running frame producer")
-                            self.running = True
-                            self.response_message = "Client has started the camera"
-                    else:
-                        self.logger.warning(f"Client: {client_id} is not connected to, or has not armed the camera")
-                        self.response_message = "The camera is not armed or the client is not connected."
+                    # Disarm the Camera
+                    elif (ctrl_request_command == "disarm") and (self.state == 2):
+                        self.state = 1
+                        self.logger.info(f"Client: {client_id} has disarmed the camera")
+                        return True
 
-                elif ctrl_request_command == "stop":
-                    if self.connected & self.armed:
-                        if self.running:
-                            self.logger.info("Stopping frame producer")
+                    # Start the camera
+                    elif (ctrl_request_command == "start") and (self.state == 2):
+
+                        # Start the camera
+                        delay = self.camera_info["config"]["delay_time_ms"]
+                        exposure = self.camera_info["config"]["exposure_time_ms"]
+                        fps = (delay + exposure)/1000
+                        self.frame_producer_thread = threading.Thread(target=self.frame_producer.run, args=(self.camera_info["config"]["number_of_frames"], fps, self.camera_info["config"]["images_file_path"]))
+                        self.frame_producer_thread.start()
+                        self.state = 3
+                        self.camera_info["acquisition"]["acquiring"] = True
+                        self.logger.info(f"Client: {client_id} has started the camera")
+                        return True
+
+                    # Stop the camera
+                    elif (ctrl_request_command == "stop") and (self.state == 3):
+
+                        if self.frame_producer_thread.is_alive():
+                            # Stop the camera
                             self.frame_producer.send_frames = False
-                            self.frame_producer_thread.join()
-                            self.running = False
-                            self.response_message = "Client has stopped the camera"
-                        else:
-                            self.logger.warning("Client has already stopped the camera")
+
+                        self.state = 2
+                        self.camera_info["acquisition"]["acquiring"] = False
+                        self.logger.info(f"Client: {client_id} has stopped the camera")
+                        return True
+
+                    elif (ctrl_request_command == "config"):
+                        request_config = ctrl_request.get_params().get("camera")
+                        self.camera_info["config"]["number_of_frames"] = request_config["frames"]
+                        self.camera_info["config"]["delay_time_ms"] = request_config["frame_delay"]
+                        self.camera_info["config"]["exposure_time_ms"] = request_config["frame_exposure"]
+                        self.camera_info["config"]["images_file_path"] = request_config["images_path"]
+                        return True
+
+                    elif ctrl_request_val == "status" or ctrl_request_val == "request_configuration":
+                        return True
+
                     else:
-                        self.logger.warning(f" Client: {client_id} is not connected to, or has not armed the camera")
-                        self.response_message = "The camera is not armed of the client is not connected"
-            else:
-                self.logger.warning(f"Client: {client_id} has made an invalid control request")
-                self.response_message = "The client has made an invalid control request"
-            
-            # Build the response message
-            ctrl_response_val = ('{"reponse" : "%s", "camera status": { "connected" : "%s", "armed" : "%s", "running" : "%s"} }'%(self.response_message,
-                                                                                                    str(self.connected),
-                                                                                                    str(self.armed),   
-                                                                                                    str(self.running)))
+                        self.logger.warn("Incorrect command or request value.")
+                        return False
+                    
+                        
 
-            # Build a response
-            ctrl_response_type = 'ack' if ctrl_request_ok else 'nack'
-            ctrl_response = IpcMessage(
-                msg_type=ctrl_response_type, msg_val=ctrl_request_val, id=ctrl_request_id
-            )
-            ctrl_response.set_param("state", 1)
 
-            # Encode and return the response to the client
-            response = [elem.encode('utf-8') for elem in (client_id, ctrl_response.encode())]
-            self.ctrl_channel.send_multipart(response)
+
+
 
 @click.command()
 @click.option("--ctrl", default="tcp://127.0.0.1:5061", show_default=True,
