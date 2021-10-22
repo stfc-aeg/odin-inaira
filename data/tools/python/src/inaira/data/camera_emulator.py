@@ -75,7 +75,7 @@ class CameraEmulator:
                                             "number_of_frames" : 0,
                                             "delay_time_ms" : 1000,
                                             "exposure_time_ms" : 1000,
-                                            "images_file_path" : None
+                                            "images_file_path" : "/aeg_sw/work/projects/inaira/odin-inaira/data/Test-Images/"
                                             }
                             }
 
@@ -143,7 +143,6 @@ class CameraEmulator:
 
 
                 if ctrl_request_val == "request_configuration":
-                    self.logger.debug("I got to here!")
                     
                     # Set the params for the config
                     self.logger.info("Returning camera config")
@@ -223,12 +222,12 @@ def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_requ
                         self.logger.info(f"Client: {client_id} has stopped the camera")
                         return True
 
-                    elif (ctrl_request_command == "config"):
+                    elif ("camera" in ctrl_request.get_params()):
                         request_config = ctrl_request.get_params().get("camera")
-                        self.camera_info["config"]["number_of_frames"] = request_config["frames"]
-                        self.camera_info["config"]["delay_time_ms"] = request_config["frame_delay"]
-                        self.camera_info["config"]["exposure_time_ms"] = request_config["frame_exposure"]
-                        self.camera_info["config"]["images_file_path"] = request_config["images_path"]
+                        self.camera_info["config"]["number_of_frames"] = request_config.get("frames", self.camera_info["config"]["number_of_frames"])
+                        self.camera_info["config"]["delay_time_ms"] = request_config.get("frame_delay", self.camera_info["config"]["delay_time_ms"])
+                        self.camera_info["config"]["exposure_time_ms"] = request_config.get("frame_exposure",self.camera_info["config"]["exposure_time_ms"])
+                        self.camera_info["config"]["images_file_path"] = request_config.get("images_path", self.camera_info["config"]["images_file_path"])
                         return True
 
                     elif ctrl_request_val == "status" or ctrl_request_val == "request_configuration":

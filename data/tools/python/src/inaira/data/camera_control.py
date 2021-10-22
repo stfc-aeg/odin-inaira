@@ -118,10 +118,7 @@ class CameraController():
         """
 
         # Create the appropriate parameter payload to send to the controller
-        params = {
-            "command" : "config",
-            "camera": {}
-            }
+        params = {"camera": {}}
 
         # If a json file path has been specified, attempt to load that file
         if json_path:

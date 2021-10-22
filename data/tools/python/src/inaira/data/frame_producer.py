@@ -91,6 +91,9 @@ class FrameProducer():
         # Set the internal run flag to true
         self._run = True
 
+        
+        self.frame = 0
+
         # Create a thread to handle frame release messages
         self.release_thread = threading.Thread(target=self.process_release)
 
