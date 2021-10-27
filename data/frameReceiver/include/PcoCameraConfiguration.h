@@ -15,19 +15,18 @@ namespace FrameReceiver
             PcoCameraConfiguration() :
                 ParamContainer(),
                 num_frames_(Defaults::default_num_frames),
-                exposure_time_(0),
-                delay_time_(0)
+                exposure_time_(0.0),
+                frame_rate_(0.0)
             {
                 bind_param<unsigned int>(num_frames_, "num_frames");
-                bind_param<unsigned int>(exposure_time_, "exposure_time_ms");
-                bind_param<unsigned int>(delay_time_, "delay_time_ms");
+                bind_param<double>(exposure_time_, "exposure_time");
+                bind_param<double>(frame_rate_, "frame_rate");
             }
 
         private:
             unsigned int num_frames_;
-            unsigned int exposure_time_;
-            unsigned int delay_time_;
-
+            double exposure_time_;
+            double frame_rate_;
             friend class PcoCameraLinkController;
 
     };

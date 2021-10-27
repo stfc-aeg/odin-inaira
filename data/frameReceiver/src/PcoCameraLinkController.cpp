@@ -29,8 +29,13 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     camera_status_.acquiring_ = false;
     camera_status_.frames_acquired_ = 0;
 
+    // Initialise the camera state machine and connect to the camera to synchronise
+    // configuration settings
     camera_state_.initiate();
     camera_state_.execute_command(PcoCameraState::CommandConnect);
+
+    // Arm and start the camera recording so that the image size can be determined from the
+    // frame grabber
     camera_state_.execute_command(PcoCameraState::CommandArm);
     camera_state_.execute_command(PcoCameraState::CommandStartRecording);
 
@@ -44,20 +49,6 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
     }
     LOG4CXX_INFO(logger_, "Grabber reports actual size: width: "
         << image_width_ << " height: " << image_height_);
-
-    pco_error = camera_->PCO_GetDelayExposure(
-        reinterpret_cast<DWORD *>(&(camera_config_.delay_time_)),
-        reinterpret_cast<DWORD *>(&(camera_config_.exposure_time_))
-    );
-    if (pco_error != PCO_NOERROR)
-    {
-        LOG4CXX_ERROR(logger_, "Failed to get delay and exposure times with error code 0x"
-             << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
-    LOG4CXX_INFO(logger_, "Camera reports exposure time: "
-        << camera_config_.exposure_time_ << "ms delay time: " << camera_config_.delay_time_ << "ms");
 
     camera_state_.execute_command(PcoCameraState::CommandStopRecording);
 }
@@ -79,6 +70,39 @@ void PcoCameraLinkController::execute_command(std::string& command)
 void PcoCameraLinkController::update_configuration(ParamContainer::Document& params)
 {
     camera_config_.update(params);
+
+    PcoCameraDelayExposure new_delay_exp(camera_config_.exposure_time_, camera_config_.frame_rate_);
+    if (new_delay_exp != camera_delay_exp_)
+    {
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating camera delay and exposure settings");
+
+        DWORD pco_error;
+        bool updated = true;
+
+        pco_error = camera_->PCO_SetTimebase(
+            new_delay_exp.delay_timebase_, new_delay_exp.exposure_timebase_
+        );
+        if (pco_error != PCO_NOERROR)
+        {
+            LOG4CXX_ERROR(logger_, "Failed to set timebase with error code 0x"
+                << std::hex << pco_error << std::dec);
+                updated = false;
+        }
+
+        pco_error = camera_->PCO_SetDelayExposure(
+            new_delay_exp.delay_time_, new_delay_exp.exposure_time_
+        );
+        if (pco_error != PCO_NOERROR)
+        {
+            LOG4CXX_ERROR(logger_, "Failed to set camera delay and exposure with error code 0x"
+                << std::hex << pco_error << std::dec);
+                updated = false;
+        }
+        if (updated)
+        {
+            camera_delay_exp_ = new_delay_exp;
+        }
+    }
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
 }
 
@@ -210,7 +234,6 @@ void PcoCameraLinkController::connect(void)
         camera_description.wDynResDESC << " pixel size: " << image_pixel_size_ << " bytes"
     );
 
-
     pco_error = camera_->PCO_GetInfo(1, camera_infostr, sizeof(camera_infostr));
     if (pco_error != PCO_NOERROR)
     {
@@ -220,10 +243,46 @@ void PcoCameraLinkController::connect(void)
         return;
     }
 
+    camera_status_.camera_name_ = std::string(camera_infostr);
+    camera_status_.camera_type_ = camera_type;
+    camera_status_.camera_serial_ = camera_serial;
+
     LOG4CXX_INFO(logger_, "Connected to PCO camera with name: '" << camera_infostr
         << "' type: 0x" << std::hex << camera_type << std::dec
         << " serial number: " << camera_serial
     );
+
+    pco_error = camera_->PCO_GetDelayExposure(
+        &(camera_delay_exp_.delay_time_), &(camera_delay_exp_.exposure_time_)
+    );
+    if (pco_error != PCO_NOERROR)
+    {
+        LOG4CXX_ERROR(logger_, "Failed to get delay and exposure times with error code 0x"
+             << std::hex << pco_error << std::dec);
+        this->disconnect();
+        return;
+    }
+
+    pco_error = camera_->PCO_GetTimebase(
+        &(camera_delay_exp_.delay_timebase_), &(camera_delay_exp_.exposure_timebase_)
+    );
+    if (pco_error != PCO_NOERROR)
+    {
+        LOG4CXX_ERROR(logger_, "Failed to get delay and exposure timebase with error code 0x"
+             << std::hex << pco_error << std::dec);
+        this->disconnect();
+        return;
+    }
+
+    camera_config_.exposure_time_ = camera_delay_exp_.exposure_time();
+    camera_config_.frame_rate_ = camera_delay_exp_.frame_rate();
+
+    LOG4CXX_INFO(logger_, "Camera reports exposure time: "
+        << camera_delay_exp_.exposure_time_ << camera_delay_exp_.exposure_timebase_unit()
+        << " delay time: " << camera_delay_exp_.delay_time_ << camera_delay_exp_.delay_timebase_unit()
+        << " frame rate: " << camera_config_.frame_rate_ << "Hz"
+    );
+
 }
 
 void PcoCameraLinkController::arm(void)
@@ -297,6 +356,9 @@ void PcoCameraLinkController::run_camera_service(void)
   camera_status_.acquiring_ = false;
   camera_status_.frames_acquired_ = 0;
 
+  int timeout = 0;
+  DWORD pco_error;
+
   while (decoder_->run_camera_service_thread())
   {
     if (camera_running_)
@@ -304,6 +366,16 @@ void PcoCameraLinkController::run_camera_service(void)
 
       if (!camera_status_.acquiring_)
       {
+
+        grabber_->Get_Grabber_Timeout(&timeout);
+
+        pco_error = grabber_->Start_Acquire();
+        if (pco_error != PCO_NOERROR)
+        {
+            LOG4CXX_ERROR(logger_, "Failed to start frame grabber acquisition error code 0x"
+                << std::hex << pco_error << std::dec);
+        }
+
         std::stringstream ss;
         if (camera_config_.num_frames_)
         {
@@ -329,7 +401,7 @@ void PcoCameraLinkController::run_camera_service(void)
           reinterpret_cast<uint8_t*>(buffer_addr) + decoder_->get_frame_header_size()
         );
 
-        if (this->acquire_image(image_buffer))
+        if (this->acquire_image(image_buffer, timeout))
         {
           Inaira::FrameHeader* frame_hdr = reinterpret_cast<Inaira::FrameHeader*>(buffer_addr);
           frame_hdr->frame_number = camera_status_.frames_acquired_;
@@ -348,6 +420,12 @@ void PcoCameraLinkController::run_camera_service(void)
       }
       if (camera_config_.num_frames_ && (camera_status_.frames_acquired_ >= camera_config_.num_frames_))
       {
+        pco_error = grabber_->Stop_Acquire();
+        if (pco_error != PCO_NOERROR)
+        {
+            LOG4CXX_ERROR(logger_, "Failed to stop frame grabber acquisition with error code 0x"
+                << std::hex << pco_error << std::dec);
+        }
         LOG4CXX_INFO(logger_,
             "Camera controller completed acquisition of " << camera_status_.frames_acquired_ << " frames"
         );
@@ -356,7 +434,7 @@ void PcoCameraLinkController::run_camera_service(void)
       }
       else
       {
-        usleep(1000000); // TODO remove this hardcoded delay
+        //usleep(1000000); // TODO remove this hardcoded delay
       }
     }
     else
@@ -404,12 +482,14 @@ std::size_t PcoCameraLinkController::get_image_size(void)
     return image_size;
 }
 
-bool PcoCameraLinkController::acquire_image(void* image_buffer)
+bool PcoCameraLinkController::acquire_image(void* image_buffer, int timeout)
 {
     bool acquire_ok = true;
     DWORD pco_error;
 
-        pco_error = grabber_->Acquire_Image(reinterpret_cast<WORD*>(image_buffer));
+        //pco_error = grabber_->Acquire_Image(reinterpret_cast<WORD*>(image_buffer));
+
+        pco_error = grabber_->Wait_For_Next_Image(reinterpret_cast<WORD*>(image_buffer), timeout);
 
         if (pco_error != PCO_NOERROR)
         {

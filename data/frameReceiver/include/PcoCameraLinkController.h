@@ -19,6 +19,7 @@ using namespace log4cxx::helpers;
 
 #include "PcoCameraStateMachine.h"
 #include "PcoCameraConfiguration.h"
+#include "PcoCameraDelayExposureConfig.h"
 #include "PcoCameraStatus.h"
 
 #include "Cpco_com.h"
@@ -47,7 +48,7 @@ namespace FrameReceiver
     void get_configuration(ParamContainer::Document& params);
     void get_status(ParamContainer::Document& params, const std::string param_prefix);
 
-    bool acquire_image(void* image_buffer);
+    bool acquire_image(void* image_buffer, int timeout);
 
     void disconnect(void);
     void connect(void);
@@ -70,6 +71,7 @@ namespace FrameReceiver
     PcoCameraState camera_state_;
     PcoCameraConfiguration camera_config_;
     PcoCameraStatus camera_status_;
+    PcoCameraDelayExposure camera_delay_exp_;
     boost::shared_ptr<boost::thread> controller_thread_;
     std::string notify_endpoint_;
 
