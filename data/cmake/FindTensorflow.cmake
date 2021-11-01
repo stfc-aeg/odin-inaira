@@ -24,61 +24,53 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# Finds the TENSORFLOW library. This module defines:
+# Finds the Tensorflow library. This module defines:
 #   - TENSORFLOW_INCLUDE_DIR, directory containing headers
 #   - TENSORFLOW_FOUND, whether TENSORFLOW has been found
-# Define TENSORFLOW_ROOT_DIR if TENSORFLOW is installed in a non-standard location.
+# Define TENSORFLOW_ROOT_DIR if Tensorflow is installed in a non-standard location.
 
-message ("\nLooking for Tensorflow")
+message ("\nLooking for Tensorflow headers and libraries")
 
 if (TENSORFLOW_ROOT_DIR)
     message (STATUS "Searching Tensorflow Root Dir: ${TENSORFLOW_ROOT_DIR}")
 endif()
 
-# Find header files
 if(TENSORFLOW_ROOT_DIR)
+
+    # Find header files
     find_path(
             TENSORFLOW_INCLUDE_DIR tensorflow/c/c_api.h
             PATHS ${TENSORFLOW_ROOT_DIR}/include
             NO_DEFAULT_PATH
     )
-else()
-    find_path(TENSORFLOW_INCLUDE_DIR tensorflow/c/c_api.h)
-endif()
 
-#find library
-if(TENSORFLOW_ROOT_DIR)
-    find_library(
-        TENSORFLOW_LIB NAMES tensorflow
-        PATHS ${TENSORFLOW_ROOT_DIR}/lib
-        NO_DEFAULT_PATH
+    # Find libraries
+    find_library(TENSORFLOW_LIBRARY
+        NAMES
+            tensorflow
+        PATHS
+            ${TENSORFLOW_ROOT_DIR}/lib
     )
     find_library(TENSORFLOW_FRAMEWORK_LIBRARY
-        NAMES tensorflow_framework
-        PATHS ${TENSORFLOW_ROOT_DIR}/lib)
-else()
-    find_library(TENSORFLOW_LIB NAMES tensorflow)
-    find_library(TENSORFLOW_FRAMEWORK_LIBRARY NAMES tensorflow_framework)
-endif()
+        NAMES
+            tensorflow_framework
+        PATHS
+            ${TENSORFLOW_ROOT_DIR}/lib
+    )
+
+    endif()
 
 include(FindPackageHandleStandardArgs)
 
 find_package_handle_standard_args(TENSORFLOW
     DEFAULT_MSG
     TENSORFLOW_INCLUDE_DIR
-    TENSORFLOW_LIB
+    TENSORFLOW_LIBRARY
     TENSORFLOW_FRAMEWORK_LIBRARY
 )
 
-if(TENSORFLOW_INCLUDE_DIR AND TENSORFLOW_LIB)
-    message(STATUS "Found Tensorflow: ${TENSORFLOW_LIB}")
-    set(TENSORFLOW_FOUND TRUE)
-else()
-    set(TENSORFLOW_FOUND FALSE)
-endif()
-
-if(NOT TENSORFLOW_FOUND)
-    message(STATUS "Could not find the Tensorflow Library.")
-    message(STATUS "Libraries Found: ${TENSORFLOW_LIB}")
-    message(STATUS "Include Dir Found: ${TENSORFLOW_INCLUDE_DIR}")
+if (TENSORFLOW_FOUND)
+    set(TENSORFLOW_LIBRARIES ${TENSORFLOW_LIBRARY} ${TENSORFLOW_FRAMEWORK_LIBRARY})
+    message(STATUS "Include directory: ${TENSORFLOW_INCLUDE_DIR}")
+    message(STATUS "Libararies: ${TENSORFLOW_LIBRARIES}")
 endif()

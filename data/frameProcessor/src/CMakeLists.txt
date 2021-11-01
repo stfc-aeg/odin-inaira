@@ -10,6 +10,6 @@ include_directories(${FRAMEPROCESSOR_DIR}/include ${ODINDATA_INCLUDE_DIRS}
 add_library(InairaMLPlugin SHARED InairaMLPlugin.cpp InairaMLCppflow.cpp)
 
 target_include_directories(InairaMLPlugin PRIVATE ../../include ${TENSORFLOW_INCLUDE_DIR})
-target_link_libraries (InairaMLPlugin ${TENSORFLOW_LIB})
+target_link_libraries (InairaMLPlugin "${TENSORFLOW_LIBRARIES}")
 
 install(TARGETS InairaMLPlugin DESTINATION lib)

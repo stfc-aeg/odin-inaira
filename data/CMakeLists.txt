@@ -52,7 +52,7 @@ find_package(OdinData REQUIRED)
 find_package(Tensorflow REQUIRED)
 find_package(Cppflow REQUIRED)
 
-message("/nDetermining inaira-detector version")
+message("\nDetermining inaira-detector version")
 include(GetGitRevisionDescription)
 git_describe(GIT_DESC_STR)
 
