@@ -123,10 +123,9 @@ class FrameProducer():
         #Convert from rgb to gray
         return np.dot(img[...,:3],[0.2989, 0.5870, 0.1140])
 
-    def run(self, frames, fps, imgs_path):
+    def run(self, frames, fps, imgs_path, camera_emulator):
 
         try:
-        #region
             """Run the frame producer main event loop."""
 
             # Check if config from camera emulator is not None
@@ -224,8 +223,9 @@ class FrameProducer():
                 except KeyboardInterrupt:
                     self.send_frames = False
 
+            # Update state of the emulator
+            camera_emulator.state = 2
             
-            #endregion
         except Exception:
             self.send_frames = False
             self.logger.warning("Error in frame producer")
