@@ -169,10 +169,10 @@ void PcoCameraLinkFrameDecoder::configure(
   OdinData::IpcMessage& config_msg, OdinData::IpcMessage& config_reply
 )
 {
-  if (config_msg.has_param("camera"))
+  if (config_msg.has_param(CAMERA_CONFIG_PATH))
   {
     ParamContainer::Document config_params;
-    config_msg.encode_params(config_params, "camera");
+    config_msg.encode_params(config_params, CAMERA_CONFIG_PATH);
     controller_->update_configuration(config_params);
   }
 
@@ -194,7 +194,7 @@ void PcoCameraLinkFrameDecoder::request_configuration(
 
   //rapidjson::Document camera_config;
   ParamContainer::Document camera_config;
-  controller_->get_configuration(camera_config);
+  controller_->get_configuration(camera_config, CAMERA_CONFIG_PATH);
   config_reply.update(camera_config);
 }
 

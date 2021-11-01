@@ -9,6 +9,7 @@
 #define INCLUDE_PCOCAMERALINKFRAMEDECODER_H_
 
 #include <iostream>
+#include <string>
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread.hpp>
 
@@ -17,6 +18,9 @@
 
 namespace FrameReceiver
 {
+
+  const std::string CAMERA_CONFIG_PATH = "camera";
+
   class PcoCameraLinkFrameDecoder : public FrameDecoderCameraLink
   {
   public:
