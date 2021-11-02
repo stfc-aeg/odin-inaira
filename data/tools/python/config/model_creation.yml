@@ -1,0 +1,10 @@
+# Configuration for the Model Creator
+---
+  input_width: 2000
+  input_height: 1800
+  image_width: 500
+  image_height: 450
+  num_classes: 2
+  number_color_layers: 1
+  model_save_location: "test_models/resize_quarter"
+  include_training: False
