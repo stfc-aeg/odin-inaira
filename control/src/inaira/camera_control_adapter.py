@@ -13,6 +13,8 @@ from odin.adapters.adapter import (ApiAdapter, ApiAdapterRequest,
 from odin.adapters.parameter_tree import ParameterTree, ParameterTreeError
 from odin.util import decode_request_body
 
+from tornado.ioloop import PeriodicCallback
+
 
 class CameraControlAdapter(ApiAdapter):
 
@@ -65,14 +67,39 @@ class CameraController():
         self.command_response = ""
         self.config_file = ""
 
+        self.connected = False
+
+        # self.camera_
+
+        self.status_tree = ParameterTree({
+            "connected": (lambda: self.connected, None)
+        }, mutable=True)
+
+        self.config_tree = ParameterTree({
+            "enable_packet_logging": (False, None),
+            "frame_timeout_ms": 1000,
+            "camera": {
+                "delay_time_ms": 0,
+                "exposure_time_ms": 10,
+                "num_frames": 5
+            },
+            "send_config": (None, self._send_config),
+        })
+
         self.param_tree = ParameterTree({
             "name": "Camera Control Adapter",
             "ctrl_endpoint": (self.ctrl_endpoint, None),
-            "status": (self.get_status, None),
-            "config": (self._request_config, self._send_config),
+            "status": self.status_tree,
+            "config": self.config_tree,
             "config_file": (lambda: self.config_file, self.send_config_file),
-            "command": (lambda: self.command_response, self.do_command)
+            "command": (lambda: self.command_response, self.do_command),
+            "request_config": (self._request_config, None)
         })
+
+        self.background_task = PeriodicCallback(
+            self.get_camera_state, 1000  # Get Camera State once every second
+        )
+        self.background_task.start()
 
     def get(self, path, request):
 
@@ -84,6 +111,21 @@ class CameraController():
     def put(self, path, data):
 
         self.param_tree.set(path, data)
+
+    def get_camera_state(self):
+        logging.debug("GETTING CAMERA STATE")
+        reply = self._send_cmd("status")
+        # logging.debug("MESSAGE TYPE: {}".format(reply.get_msg_type()))
+        # logging.debug(reply.ACK)
+        # logging.debug(reply)
+        try:
+            self.connected = reply.get_msg_type() and reply.get_msg_type() in reply.ACK
+            # logging.debug("CONNECTED: {}".format(self.connected))
+            self.status_tree.set('', {"acquisition": reply.get_params().get("acquisition", {})})
+            self.status_tree.set('', {"camera": reply.get_params().get('camera', {})})
+        except KeyError as err:
+            logging.error("Key Not Found: {}".format(err))
+
 
     def _next_msg_id(self):
         """Return the next message ID for the control channel
@@ -110,15 +152,13 @@ class CameraController():
         # logging.info(f"Command response: \n{self.format_json(reply)}")
 
     def send_config_file(self, json_path=None):
-        """Send or request configuration parameters to/from the PCO camera controller.
+        """Send configuration parameters to the PCO camera controller.
 
         This method sends or requests configuration parameters to/from the PCO camera controller.
-        These can either by provided in a JSON file at the specified path, which will be loaded and
-        injected into the configuration message, or as individual key-value pairs. If neither a file
-        nor any key-value pairs are specified, request the current configuration instead
+        This method does this using configuration provided in a JSON file at the specified path,
+        which will be loaded and injected into the configuration message.
 
         :param json_path: optional JSON config file path to load
-        :param json_vals: tuple of key-value pairs to parse into JSON fields
         """
 
         # Create the appropriate parameter payload to send to the controller
@@ -143,7 +183,15 @@ class CameraController():
 
         :param params: dictionary of parameters to add to the IPC channel message.
         """
-        reply = self._send_cmd("configure", params)
+        logging.debug("SEND CONFIG PARAMS:\n{}".format(params))
+        if type(params) is dict:
+            if "camera" not in params:
+                params = {'camera': params}
+            logging.debug("SENDING PARAMS FROM PUT REQUEST")
+            reply = self._send_cmd("configure", params)
+        else:
+            logging.debug("SENDING PARAMS FROM PARAM_TREE")
+            reply = self._send_cmd('configure', self.config_tree.get('camera'))
         # logging.info(f"Configuration response: \n{self.format_json(reply)}")
 
     def _request_config(self):
@@ -153,6 +201,7 @@ class CameraController():
         displays the response as formatted JSON.
         """
         reply = self._send_cmd("request_configuration")
+        return reply.attrs
         # logging.info(f"Config request response: \n{self.format_json(reply)}")
 
     def get_status(self):
