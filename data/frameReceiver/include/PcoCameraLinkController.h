@@ -2,7 +2,7 @@
  * PcoCameraLinkController.h - controller class for the PCO camera integration into odin-data
  *
  * Created on: 20 July 2021
- *     Author: Tim Nicholls, STFC Detector Systems Group
+ *     Author: Tim Nicholls, STFC Detector Systems Software Group
  */
 
 #ifndef INCLUDE_PCOCAMERALINKCONTROLLER_H_
@@ -100,6 +100,9 @@ namespace FrameReceiver
 
     //! Calculates the image number from the timestamp in the first pixel data
     int image_nr_from_timestamp(void *image_buffer, int shift);
+
+    //! Returns a readable error string for a camera error code
+    std::string pco_error_text(DWORD pco_error);
 
     LoggerPtr logger_;                                   //!< Pointer to the message logger
     PcoCameraLinkFrameDecoder* decoder_;                 //!< Pointer to the frame decoder instance

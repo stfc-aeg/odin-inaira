@@ -24,7 +24,8 @@ if (PCOCAMERA_FOUND)
 		PcoCameraLinkController.cpp
 		PcoCameraStateMachine.cpp
 		PcoCameraDelayExposureConfig.cpp
-		ParamContainer.cpp)
+		ParamContainer.cpp
+		PcoCameraError.c)
 
 	target_include_directories(PcoCameraLinkFrameDecoder PRIVATE ${PCOCAMERA_INCLUDES})
 

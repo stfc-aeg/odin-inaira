@@ -2,7 +2,7 @@
  * PcoCameraStateMachine.h - finite state machine implementation for the PCO camera controller
  *
  * Created on: 22 Sept 2021
- *     Author: Tim Nicholls, STFC Detector Systems Group
+ *     Author: Tim Nicholls, STFC Detector Systems Software Group
  */
 
 #ifndef INCLUDE_PCOCAMERASTATEMACHINE_H_

@@ -8,7 +8,7 @@
  * client connection.
  *
  * Created on: 20 July 2021
- *     Author: Tim Nicholls, STFC Detector Systems Group
+ *     Author: Tim Nicholls, STFC Detector Systems Software Group
  */
 
 #include <math.h>
@@ -16,6 +16,7 @@
 #include "PcoCameraLinkController.h"
 #include "PcoCameraStateMachine.h"
 #include "PcoCameraLinkFrameDecoder.h"
+#include "PcoCameraError.h"
 #include "file12.h"
 #include "IpcMessage.h"
 #include "InairaDefinitions.h"
@@ -725,4 +726,25 @@ int PcoCameraLinkController::image_nr_from_timestamp(void *image_buffer, int shi
         pixel_ptr++;
     }
     return image_num;
+}
+
+//! Returns a readable error string for a camera error code.
+//!
+//! This method translates a PCO camera error code into text, wrapping the PCO_GetErrorText
+//! method exposed from the SDK.
+//!
+//! \param pco_error - PCO camera error code
+//! \return error text as a string
+
+std::string PcoCameraLinkController::pco_error_text(DWORD pco_error)
+{
+    // Allocate a char buffer to receive the error text
+    const unsigned int err_buf_size = 100;
+    char err_buf[err_buf_size];
+
+    // Pass the error code and text buffer to the SDK function
+    PCO_GetErrorText(pco_error, err_buf, err_buf_size);
+
+    // Return the error text as a string
+    return std::string(err_buf);
 }

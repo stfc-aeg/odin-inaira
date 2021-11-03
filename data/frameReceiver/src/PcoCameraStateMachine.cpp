@@ -7,7 +7,7 @@
  * triggering operations in the controller.
  *
  * Created on: 22 Sept 2021
- *     Author: Tim Nicholls, STFC Detector Systems Group
+ *     Author: Tim Nicholls, STFC Detector Systems Software Group
  */
 
 #include <iostream>
