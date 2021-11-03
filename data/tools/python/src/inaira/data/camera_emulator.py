@@ -72,9 +72,11 @@ class CameraEmulator:
                                             "state": "disconnected"
                                             },
                                 "config" : {
-                                            "number_of_frames" : 0,
-                                            "delay_time_ms" : 1000,
-                                            "exposure_time_ms" : 1000,
+                                            "camera_num" : 0,
+                                            "num_frames" : 0,
+                                            "frame_rate": 1.0,
+                                            "exposure_time" : 0.01,
+                                            "image_timeout" : 10.0,
                                             "images_file_path" : "/aeg_sw/work/projects/inaira/odin-inaira/data/Test-Images/"
                                             }
                             }
@@ -146,7 +148,7 @@ class CameraEmulator:
                     # Set the params for the config
                     self.logger.info("Returning camera config")
                     ctrl_response.set_param("enabled_packet_logging", False)
-                    ctrl_response.set_param("frame_timeout_ms", 10)
+                    ctrl_response.set_param("frame_timeout_ms", 1000)
                     ctrl_response.set_param("camera", self.camera_info["config"])
 
                 # Encode and return the response to the client
@@ -160,85 +162,85 @@ class CameraEmulator:
             shut_down_producer(self)
             self.logger.error("Exception in camera emulator")
                     
-    # TODO Error handling in state machine
-    def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_request_val):
-        # State Machine
-        # Can only go +- 1 state. NO JUMPS
+# TODO Error handling in state machine
+def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_request_val):
+    # State Machine
+    # Can only go +- 1 state. NO JUMPS
 
-        # Camera must be connected before status or config can be requested or sent
+    # Camera must be connected before status or config can be requested or sent
 
-        # Connect to the camera
-        if (ctrl_request_command == "connect") and (self.state == 0):
-            self.state = 1
-            self.logger.info(f"Client: {client_id} has connected to the camera")
-            return True
-            
+    # Connect to the camera
+    if (ctrl_request_command == "connect") and (self.state == 0):
+        self.state = 1
+        self.logger.info(f"Client: {client_id} has connected to the camera")
+        return True
+        
 
-        # Disconnect from the camera
-        elif (ctrl_request_command == "disconnect") and (self.state == 1):
-            self.state = 0
-            self.logger.info(f"Client: {client_id} has disconnected from the camera")
-            return True
+    # Disconnect from the camera
+    elif (ctrl_request_command == "disconnect") and (self.state == 1):
+        self.state = 0
+        self.logger.info(f"Client: {client_id} has disconnected from the camera")
+        return True
 
-        # Arm the camera
-        elif (ctrl_request_command == "arm") and (self.state == 1):
-            self.state = 2
-            self.logger.info(f"Client: {client_id} has armed the camera")
-            return True
+    # Arm the camera
+    elif (ctrl_request_command == "arm") and (self.state == 1):
+        self.state = 2
+        self.logger.info(f"Client: {client_id} has armed the camera")
+        return True
 
-        # Disarm the Camera
-        elif (ctrl_request_command == "disarm") and (self.state == 2):
-            self.state = 1
-            self.logger.info(f"Client: {client_id} has disarmed the camera")
-            return True
+    # Disarm the Camera
+    elif (ctrl_request_command == "disarm") and (self.state == 2):
+        self.state = 1
+        self.logger.info(f"Client: {client_id} has disarmed the camera")
+        return True
+
+    # Start the camera
+    elif (ctrl_request_command == "start") and (self.state == 2):
 
         # Start the camera
-        elif (ctrl_request_command == "start") and (self.state == 2):
+        fps = int(self.camera_info["confog"]["frame_rate"])
+        self.frame_producer_thread = threading.Thread(target=self.frame_producer.run,
+                                                    args=(self.camera_info["config"]["num_frames"],
+                                                            fps,
+                                                            self.camera_info["config"]["images_file_path"],
+                                                            self)
+                                                    )
+        self.frame_producer_thread.start()
+        self.state = 3
+        self.camera_info["acquisition"]["acquiring"] = True
+        self.logger.info(f"Client: {client_id} has started the camera")
+        return True
 
-            # Start the camera
-            delay = self.camera_info["config"]["delay_time_ms"]
-            exposure = self.camera_info["config"]["exposure_time_ms"]
-            fps = (delay + exposure)/1000
-            self.frame_producer_thread = threading.Thread(target=self.frame_producer.run,
-                                                        args=(self.camera_info["config"]["number_of_frames"],
-                                                                fps,
-                                                                self.camera_info["config"]["images_file_path"],
-                                                                self)
-                                                        )
-            self.frame_producer_thread.start()
-            self.state = 3
-            self.camera_info["acquisition"]["acquiring"] = True
-            self.logger.info(f"Client: {client_id} has started the camera")
-            return True
+    # Stop the camera
+    elif (ctrl_request_command == "stop") and (self.state == 3):
 
-        # Stop the camera
-        elif (ctrl_request_command == "stop") and (self.state == 3):
+        if self.frame_producer_thread.is_alive():
+            # Stop the camera
+            self.frame_producer.send_frames = False
 
-            if self.frame_producer_thread.is_alive():
-                # Stop the camera
-                self.frame_producer.send_frames = False
+        self.state = 2
+        self.camera_info["acquisition"]["acquiring"] = False
+        self.logger.info(f"Client: {client_id} has stopped the camera")
+        return True
 
-            self.state = 2
-            self.camera_info["acquisition"]["acquiring"] = False
-            self.logger.info(f"Client: {client_id} has stopped the camera")
-            return True
+    elif ("camera" in ctrl_request.get_params()):
+        request_config = ctrl_request.get_params().get("camera")
+        self.camera_info["config"]["num_frames"] = request_config.get("num_frames", self.camera_info["config"]["num_frames"])
+        self.camera_info["config"]["frame_rate"] = request_config.get("frame_rate", self.camera_info["config"]["frame_rate"])
+        self.camera_info["config"]["exposure_time"] = request_config.get("frame_exposure",self.camera_info["config"]["exposure_time"])
+        self.camera_info["config"]["images_file_path"] = request_config.get("images_path", self.camera_info["config"]["images_file_path"])
+        self.camera_info["config"]["image_timeout"] = request_config.get("image_timeout", self.camera_info["config"]["image_timeout"])
+        self.camera_info["config"]["camera_num"] = request_config.get("camera_num", self.camera_info["config"]["camera_num"])
+        return True
 
-        elif ("camera" in ctrl_request.get_params()):
-            request_config = ctrl_request.get_params().get("camera")
-            self.camera_info["config"]["number_of_frames"] = request_config.get("num_frames", self.camera_info["config"]["number_of_frames"])
-            self.camera_info["config"]["delay_time_ms"] = request_config.get("frame_delay", self.camera_info["config"]["delay_time_ms"])
-            self.camera_info["config"]["exposure_time_ms"] = request_config.get("frame_exposure",self.camera_info["config"]["exposure_time_ms"])
-            self.camera_info["config"]["images_file_path"] = request_config.get("images_path", self.camera_info["config"]["images_file_path"])
-            return True
+    elif ctrl_request_val == "status" or ctrl_request_val == "request_configuration":
+        return True
 
-        elif ctrl_request_val == "status" or ctrl_request_val == "request_configuration":
-            return True
+    else:
+        self.logger.warn("Incorrect command or request value.")
+        return False
 
-        else:
-            self.logger.warn("Incorrect command or request value.")
-            return False
-
-    def shut_down_producer(self):
+def shut_down_producer(self):
     # Stop the frame producer if it is running
         if self.state == 3:
             self.frame_producer_thread.join()
