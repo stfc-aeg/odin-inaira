@@ -1,7 +1,7 @@
 {
     "camera_num" : 7,
     "num_frames" : 50,
-    "frame_rate": 1.0,
+    "frame_rate": 2.5,
     "frame_exposure": 0.01,
     "image_timeout" : 10.0,
     "images_path" : "/aeg_sw/work/projects/inaira/odin-inaira/data/Test-Images/" 

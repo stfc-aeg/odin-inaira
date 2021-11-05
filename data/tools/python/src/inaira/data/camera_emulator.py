@@ -162,7 +162,6 @@ class CameraEmulator:
             shut_down_producer(self)
             self.logger.error("Exception in camera emulator")
                     
-# TODO Error handling in state machine
 def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_request_val):
     # State Machine
     # Can only go +- 1 state. NO JUMPS
@@ -198,7 +197,7 @@ def state_machine(self, ctrl_request_command, client_id, ctrl_request, ctrl_requ
     elif (ctrl_request_command == "start") and (self.state == 2):
 
         # Start the camera
-        fps = int(self.camera_info["confog"]["frame_rate"])
+        fps = self.camera_info["config"]["frame_rate"]
         self.frame_producer_thread = threading.Thread(target=self.frame_producer.run,
                                                     args=(self.camera_info["config"]["num_frames"],
                                                             fps,
