@@ -64,12 +64,16 @@
             "decode_header": true,
             "test_model": false,
             "test_img_path": "include/casting_model/cast_ok_0_10.jpeg",
-            "result_socket_addr": "tcp://0.0.0.0:5020"
+            "result_socket_addr": "tcp://0.0.0.0:5030",
+            "send_results": true,
+            "send_image": true
+
         }
     },
     {
         "liveview": {
-            "live_view_socket_addr":"tcp://0.0.0.0:5021"
+            "live_view_socket_addr":"tcp://0.0.0.0:5020"
+
         }
     },
     {
@@ -92,13 +96,13 @@
                 "good":
                 {
                     "datatype":"uint8",
-                    "dims":[300, 300],
+                    "dims":[2000, 1800],
                     "compression":"none"
                 },
                 "defective":
                 {
                     "datatype":"uint8",
-                    "dims":[300, 300],
+                    "dims":[2000, 1800],
                     "compression":"none"
                 }
             },
