@@ -1,7 +1,11 @@
 """
 Adapter for ODIN INAIRA
 
-This class 'fill me in'
+This class controls communication between Odin Control and Odin Data when the INAIRA
+plugin is in use. 
+
+The live view adapter is used to display images.
+The INAIRA adapter controls and displays frame data. 
 
 David Symons
 """
@@ -36,7 +40,7 @@ class OdinInaira(object):
 
     def __init__(self, endpoints, live_image):
         """
-        Initialise the OdinInaira object.     
+        Initialise the OdinInaira object.
 
         This constructor initlialises the OdinInaira object, building a parameter tree and
         launching a background task if enabled
@@ -79,21 +83,14 @@ class OdinInaira(object):
             'total_frames' : (lambda: self.total_frames, None)
         })
 
-        # camera_control_parameters = ParameterTree({
-        #     'start_stop' : (),
-        #     'arm_disarm' : (),
-        #     'cam_frame_rate' : (),
-        # })
-
         # Store all information in a parameter tree
         self.param_tree = ParameterTree({
             'odin_version': version_info['version'],
             'tornado_version': tornado.version,
             'server_uptime': (self.get_server_uptime, None),
             'frame' : frame_data_parameters,
-            #camera_controls' : camera_control_parameters,
             'experiment' : experiment_data_parameters
-            
+
         })
 
         logging.debug('Parameter tree initialised')
@@ -149,22 +146,17 @@ class OdinInaira(object):
 
         self.pass_ratio = self.good_frames/self.total_frames
 
-        logging.debug(" Pass ratio = " + str(self.pass_ratio)) 
+        logging.debug(" Pass ratio = " + str(self.pass_ratio))
 
         #Do the maths for the avg_process_time
 
         self.total_process_time += self.process_time
         self.avg_process_time = self.total_process_time/self.total_frames
-        
+
         logging.debug(" Avg Process Time = " + str(self.avg_process_time) + "ms")
 
-    def get_camera_configuration():
-        return False
-    
-    def send_camera_configuration():
-        return False
 
-    
+        return False
 
     def cleanup(self):
         for channel in self.ipc_channels:

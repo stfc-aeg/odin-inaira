@@ -1,7 +1,6 @@
 """
 Adapter for ODIN INAIRA
 
-This class 'fill me in'
 
 David Symons
 """
@@ -25,9 +24,6 @@ DEFAULT_ENDPOINT = 'tcp://127.0.0.1:530'
 DEFAULT_LIVE_IMAGE = False
 ENDPOINTS = 'inaira_endpoints'
 LIVE_IMAGE = "process_live_image"
-
-
-# TODO Add in config for enpoints conections, either hardcode or add to config
 
 class OdinInairaAdapter(ApiAdapter):
 

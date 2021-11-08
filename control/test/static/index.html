@@ -56,27 +56,57 @@
                         <h1 class="align-center bold">Odin INAIRA Control</h1>
                     </div>
 <!-- 
-Add in:
-    - Delay Time
-    - Exposure Time
-    - Connect / Disconnect
-    - Separate Camera Config Area
-    - Separate Camera Control Area
--->
-                    <div class ="row well"><!-- Camera Controls -->
-                        <h2> Camera Controls </h2>
-                        <section class="column screen-third">
-                            <button type="button" id="startStop" onclick="start_stop()" class="button_red" >Start / Stop</button>
-                        </section>
-                        <section class="column screen-third">
-                            <button type="button" id="armDisarm" onclick="arm_disarm()" class="button_red" >Arm / Disarm</button>
-                        </section>
-                        <section class="column screen-third">
-                            <label> Frame Rate </label>
-                            <input type="number" name="frame_rate">
-                        </section>
+Add: 
+    - All config for camera
+    - Get config and replace anything in boxes with it when requested
 
-                    </div> <!-- End of Row -->
+    - Status display
+        - Find a way to display an empty parameter tree??
+-->
+                    <div name="Camera Control">
+                        <div class="row">
+                            <h2> Camera Controls </h2>
+                        </div>
+                        <div class="row well" name="state_machine"> <!-- State Displat and State Switcher-->
+                            <section class="column screen-half">
+                                <button type="button" id="stateUp" onclick="stateUp()" class="">Move State Up</button>
+                                <button type="button" id="stateDown" onclick="stateDown()" class="">Move State Down</button>
+                            </section>
+                            <section class="column screen-half">
+                                <label name="stateName"> This will display the state name</label>
+                            </section>
+                        </div>
+                        <div class="well">
+                            <div class ="row"><!-- Camera config input -->
+                                <section class="column screen-third">
+                                    <label> Frame Rate </label>
+                                    <input type="number" name="frame_rate">
+                                </section>
+                                <section class="column screen-third">
+                                    <label> Exposure Time </label>
+                                    <input type="number" name="exposure_time">
+                                </section>
+                                <section class="column screen-third">
+                                    <label> Number of Frames </label>
+                                    <input type="num_frames" name="num_frames">
+                                </section>
+                            </div> <!-- End of Row -->
+                            <div class ="row">
+                                <section class="column screen-third">
+                                    <label> Image Timeout </label>
+                                    <input type="number" name="image_timeout">
+                                </section>
+                                <section class="column screen-third">
+                                    <label> Camera Num </label>
+                                    <input type="number" name="camera_num">
+                                </section>
+                                <section class="column screen-third">
+                                    <button type="button" id="sendConfig" onclick="sendConfig()" class="">Send Config</button>
+                                </section>
+                            </div> <!-- End of Row -->
+                        </div>
+
+                    </div>
 
                 <div class="row well"> <!-- Frame Data and Live View -->
                     <section class="column screen-half "><!-- Current Frame Data -->  

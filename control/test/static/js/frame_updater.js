@@ -19,6 +19,26 @@ function update_frame_data() {
     });
 }
 
+function state_up(){
+
+}
+
+function stateDown(){
+
+}
+
+function get_config(){
+
+}
+
+function set_config(){
+
+}
+
+function get_status(){
+    
+}
+
 function change_enable() {
     var enabled = $('#task-enable').prop('checked');
     console.log("Enabled changed to " + (enabled ? "true" : "false"));
