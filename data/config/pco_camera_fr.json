@@ -1,0 +1,16 @@
+[
+  {
+    "debug_level": 3,
+    "ctrl_endpoint": "tcp://192.168.0.25:5000",
+    "frame_ready_endpoint": "tcp://127.0.0.1:5001",
+    "frame_release_endpoint": "tcp://127.0.0.1:5002",
+    "shared_buffer_name": "PcoCameraBuffer",
+    "rx_type": "cameralink",
+    "max_buffer_mem": 840000000,
+    "decoder_path": "./lib",
+    "decoder_type": "PcoCameraLink",
+    "decoder_config": {
+      "camera_ctrl_endpoint": "tcp://127.0.0.1:5060"
+    }
+  }
+]

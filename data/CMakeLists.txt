@@ -51,6 +51,7 @@ find_package(ZeroMQ 3.2.4 REQUIRED)
 find_package(OdinData REQUIRED)
 find_package(Tensorflow REQUIRED)
 find_package(Cppflow REQUIRED)
+find_package(PcoCamera)
 
 message("\nDetermining inaira-detector version")
 include(GetGitRevisionDescription)

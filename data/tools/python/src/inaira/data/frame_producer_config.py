@@ -13,9 +13,9 @@ class FrameProducerConfig:
     boost_mmap_mode = False
     ready_endpoint = "tcp://127.0.0.1:5001"
     release_endpoint = "tcp://127.0.0.1:5002"
-    frames = 10
+    frames = 0
     testfile_path = (os.getcwd().split("tools"))[0] + "/Test-Images/"
-    frames_per_second = 30
+    frames_per_second = 1
 
     config_file: InitVar[str] = None
 
