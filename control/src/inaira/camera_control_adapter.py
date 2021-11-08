@@ -22,7 +22,8 @@ class CameraControlAdapter(ApiAdapter):
         super(CameraControlAdapter, self).__init__(**kwargs)
 
         ctrl_endpoint = self.options.get("ctrl_endpoint", "")
-        self.controller = CameraController(ctrl_endpoint)
+        status_refresh = self.options.get("status_loop_time", 1000)
+        self.controller = CameraController(ctrl_endpoint, status_refresh)
 
     @response_types('application/json', default='application/json')
     def get(self, path, request):
@@ -53,7 +54,7 @@ class CameraController():
     # Define the maximum message ID for the IPC channel
     MESSAGE_ID_MAX = 2**32
 
-    def __init__(self, ctrl_endpoint):
+    def __init__(self, ctrl_endpoint, status_refresh):
 
         # init control IPC channel and connect to endpoint
         self.ctrl_endpoint = ctrl_endpoint
@@ -69,7 +70,24 @@ class CameraController():
 
         self.connected = False
 
-        # self.camera_
+        self.frame_timeout_ms = 1000
+        self.camera_num = 0
+        self.exposure_time = 0.01
+        self.frame_rate = 100
+        self.image_timeout = 10.0
+        self.num_frames = 10
+
+        camera_config = self._request_config()
+        if camera_config['msg_type'] == "ack":
+            camera_config = camera_config['params']
+            
+            self.frame_timeout_ms = camera_config['frame_timeout_ms']
+            camera_config = camera_config['camera']
+            self.camera_num = camera_config['camera_num']
+            self.exposure_time = camera_config['exposure_time']
+            self.frame_rate = camera_config['frame_rate']
+            self.image_timeout = camera_config['image_timeout']
+            self.num_frames = camera_config['num_frames']
 
         self.status_tree = ParameterTree({
             "connected": (lambda: self.connected, None)
@@ -77,13 +95,14 @@ class CameraController():
 
         self.config_tree = ParameterTree({
             "enable_packet_logging": (False, None),
-            "frame_timeout_ms": 1000,
+            "frame_timeout_ms": (lambda: self.frame_timeout_ms, None),
             "camera": {
-                "delay_time_ms": 0,
-                "exposure_time_ms": 10,
-                "num_frames": 5
-            },
-            "send_config": (None, self._send_config),
+                "camera_num": (lambda: self.camera_num,       lambda a: self._send_config({'camera_num': a})),
+                "exposure_time": (lambda: self.exposure_time, lambda a: self._send_config({'exposeure_time': a})),
+                "frame_rate": (lambda: self.frame_rate,       lambda a: self._send_config({'frame_rate': a})),
+                "image_timeout": (lambda: self.image_timeout, lambda a: self._send_config({"image_timeout": a})),
+                "num_frames": (lambda: self.num_frames,       lambda a: self._send_config({"num_frames": a}))
+            }
         })
 
         self.param_tree = ParameterTree({
@@ -92,12 +111,12 @@ class CameraController():
             "status": self.status_tree,
             "config": self.config_tree,
             "config_file": (lambda: self.config_file, self.send_config_file),
-            "command": (lambda: self.command_response, self.do_command),
-            "request_config": (self._request_config, None)
+            "command": (lambda: self.command_response, self.do_command)
+            # "request_config": (self._request_config, None)
         })
 
         self.background_task = PeriodicCallback(
-            self.get_camera_state, 1000  # Get Camera State once every second
+            self.get_camera_state, status_refresh  # Get Camera State once every second
         )
         self.background_task.start()
 
@@ -113,7 +132,7 @@ class CameraController():
         self.param_tree.set(path, data)
 
     def get_camera_state(self):
-        logging.debug("GETTING CAMERA STATE")
+        # logging.debug("GETTING CAMERA STATE")
         reply = self._send_cmd("status")
         # logging.debug("MESSAGE TYPE: {}".format(reply.get_msg_type()))
         # logging.debug(reply.ACK)
@@ -123,6 +142,20 @@ class CameraController():
             # logging.debug("CONNECTED: {}".format(self.connected))
             self.status_tree.set('', {"acquisition": reply.get_params().get("acquisition", {})})
             self.status_tree.set('', {"camera": reply.get_params().get('camera', {})})
+        except KeyError as err:
+            logging.error("Key Not Found: {}".format(err))
+
+        reply = self._send_cmd("request_configuration")
+
+        try:
+            self.frame_timeout_ms = reply.get_params().get("frame_timeout_ms", self.frame_timeout_ms)
+            camera_config = reply.get_params().get("camera", {})
+            self.camera_num = camera_config.get("camera_num", self.camera_num)
+            self.exposure_time = camera_config.get("exposure_time", self.exposure_time)
+            self.frame_rate = camera_config.get("frame_rate", self.frame_rate)
+            self.image_timeout = camera_config.get("image_timeout", self.image_timeout)
+            self.num_frames = camera_config.get("num_frames", self.num_frames)
+
         except KeyError as err:
             logging.error("Key Not Found: {}".format(err))
 
