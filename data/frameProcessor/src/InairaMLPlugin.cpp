@@ -8,7 +8,7 @@ get result from model (store in... */
 
 #include <InairaMLPlugin.h>
 #include "version.h"
-#include <cppflow.h>  /*TODO: Remove when ready*/
+#include "Json.h"
 
 namespace FrameProcessor
 {
@@ -16,16 +16,19 @@ namespace FrameProcessor
     const std::string InairaMLPlugin::CONFIG_MODEL_INPUT_LAYER = "model_input_layer";
     const std::string InairaMLPlugin::CONFIG_MODEL_OUTPUT_LAYER = "model_output_layer";
     const std::string InairaMLPlugin::CONFIG_DECODE_IMG_HEADER = "decode_header";
-    const std::string InairaMLPlugin::CONFIG_TEST_MODEL = "test_model";
-    const std::string InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH = "test_img_path";
     const std::string InairaMLPlugin::CONFIG_RESULT_DEST = "result_socket_addr";
+    const std::string InairaMLPlugin::CONFIG_SEND_RESULTS = "send_results";
+    const std::string InairaMLPlugin::CONFIG_SEND_IMAGE = "send_image";
 
     /**
      * The constructor
      */
     InairaMLPlugin::InairaMLPlugin() :
         publish_socket_(ZMQ_PUB),
+        is_bound_(false),
         decode_header(false),
+        send_results_(false),
+        send_image_(false),
         avg_process_time(0),
         total_process_time(0),
         num_processed(0)
@@ -74,6 +77,18 @@ namespace FrameProcessor
             bool config_decode_header = config.get_param<bool>(InairaMLPlugin::CONFIG_DECODE_IMG_HEADER);
             decode_header = config_decode_header;
         }
+        if(config.has_param(InairaMLPlugin::CONFIG_SEND_RESULTS))
+        {
+            send_results_ = config.get_param<bool>(InairaMLPlugin::CONFIG_SEND_RESULTS);
+        }
+        if(config.has_param(InairaMLPlugin::CONFIG_SEND_IMAGE))
+        {
+            send_image_ = config.get_param<bool>(InairaMLPlugin::CONFIG_SEND_IMAGE);
+        }
+        if(config.has_param(InairaMLPlugin::CONFIG_RESULT_DEST))
+        {
+            setSocketAddr(config.get_param<std::string>(InairaMLPlugin::CONFIG_RESULT_DEST));
+        }
         //send configuration to the plugin
         if(config.has_param(InairaMLPlugin::CONFIG_MODEL_PATH))
         {
@@ -82,39 +97,6 @@ namespace FrameProcessor
             );
             model_.loadModel(model_path);
         }
-        if(config.has_param(InairaMLPlugin::CONFIG_TEST_MODEL) && config.get_param<bool>(InairaMLPlugin::CONFIG_TEST_MODEL))
-        {
-  
-            LOG4CXX_DEBUG(logger_, "Testing model with Dummy Frame");
-            // FrameMetaData frame_meta;
-            std::string img_path = config.get_param<std::string>(InairaMLPlugin::CONFIG_MODEL_TEST_IMG_PATH);
-
-            Inaira::FrameHeader header;
-            header.frame_number = 0;
-            header.frame_data_type = raw_8bit;
-            header.frame_width = 300;
-            header.frame_height = 300;
-            header.frame_size = 300*300;
-
-            LOG4CXX_DEBUG(logger_, "Loading Image");
-            cppflow::tensor image_input = cppflow::decode_jpeg(cppflow::read_file(img_path), 1);
-            std::vector<uint8_t> image_data = image_input.get_data<uint8_t>();
-
-            const std::size_t frame_size = image_data.size();
-
-            boost::shared_ptr<Frame> test_frame;
-            FrameMetaData empty_meta;
-            test_frame = boost::shared_ptr<Frame>(new DataBlockFrame(empty_meta, frame_size  + sizeof(header)));
-
-            void* data_ptr = static_cast<void*>(
-                static_cast<char*>(test_frame->get_data_ptr()) + sizeof(Inaira::FrameHeader)
-            );
-            memcpy(test_frame->get_data_ptr(), &header, sizeof(header));
-            memcpy(data_ptr, image_data.data(), frame_size);
-            
-            process_frame(test_frame);
-        }
-
     }
 
     void InairaMLPlugin::requestConfiguration(OdinData::IpcMessage& reply)
@@ -141,6 +123,8 @@ namespace FrameProcessor
 
     bool InairaMLPlugin::reset_statistics(void)
     {
+        total_process_time = 0;
+        num_processed = 0;
         return true;
     }
 
@@ -172,7 +156,23 @@ namespace FrameProcessor
         else
             frame->meta_data().set_dataset_name("good");
 
-        sendResults(frame->get_frame_number(), frame_process_time, result);
+        if(send_results_)
+        {
+            std::string results = sendResults(frame->get_frame_number(), frame_process_time, result);
+
+            if(send_image_)
+            {
+                InairaMLPlugin::LiveImageData live_image = sendImage(frame);
+                publish_socket_.send(results, ZMQ_SNDMORE);
+                publish_socket_.send(live_image.json_header, ZMQ_SNDMORE);
+                publish_socket_.send(frame->get_image_size(), live_image.frame_data_ptr, 0);
+
+            }
+            else
+            {
+                publish_socket_.send(results);
+            }
+        }
         this->push(frame);
     }
 
@@ -189,8 +189,8 @@ namespace FrameProcessor
             metadata.set_frame_number(hdr_ptr->frame_number);
             metadata.set_compression_type(no_compression);
             dimensions_t dims(2);
-            dims[0] = hdr_ptr->frame_height;
-            dims[1] = hdr_ptr->frame_width;
+            dims[1] = hdr_ptr->frame_height;
+            dims[0] = hdr_ptr->frame_width;
             metadata.set_dimensions(dims);
 
             frame->set_meta_data(metadata);
@@ -198,41 +198,73 @@ namespace FrameProcessor
             frame->set_image_size(hdr_ptr->frame_height*hdr_ptr->frame_width * sizeof(uint8_t));
     }
 
-    void InairaMLPlugin::sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results)
+    std::string InairaMLPlugin::sendResults(uint32_t frame_number, uint32_t process_time, std::vector<float> results)
     {
-        //something describing frame? probs just frame number
         LOG4CXX_DEBUG(logger_, "Creating Json structure");
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Value key_num("frame_number", doc.GetAllocator());
-        rapidjson::Value frame_num(frame_number);
-        doc.AddMember(key_num, frame_num, doc.GetAllocator());
-
-        rapidjson::Value key_time("process_time", doc.GetAllocator());
-        rapidjson::Value frame_time(process_time);
-        doc.AddMember(key_time, frame_time, doc.GetAllocator());
-        //do a loop for the values in the result vector
+        OdinData::JsonDict json;
+        json.add("frame_number", frame_number);
+        json.add("process_time", process_time);
+        json.add("result", results);
         
-        LOG4CXX_DEBUG(logger_, "Adding Array to json");
+        std::string json_str = json.str();
+        LOG4CXX_DEBUG(logger_, "Json:" << json_str);
+        return json_str;
+    }
+
+    InairaMLPlugin::LiveImageData InairaMLPlugin::sendImage(boost::shared_ptr<Frame> frame)
+    {
+        OdinData::JsonDict json;
+        const FrameMetaData meta_data = frame->get_meta_data();
+        void* frame_data_copy = (void*)frame->get_image_ptr();
+        std::vector<uint32_t> dims;
+        dims.push_back(meta_data.get_dimensions()[0]);
+        dims.push_back(meta_data.get_dimensions()[1]);
+        uint32_t frame_num = frame->get_frame_number();
+
+
+        json.add("frame_num", frame_num);
+        json.add("acquisition_id", meta_data.get_acquisition_ID());
+        json.add("dtype", get_type_from_enum((DataType)meta_data.get_data_type()));
+        json.add("dsize", frame->get_image_size());
+        json.add("dataset", meta_data.get_dataset_name());
+        json.add("compression", get_compress_from_enum((CompressionType)meta_data.get_compression_type()));
+
+        json.add("shape", dims);
+
+        InairaMLPlugin::LiveImageData image_data;
+        image_data.json_header = json.str();
+        image_data.frame_data_ptr = frame_data_copy;
         
-        rapidjson::Value keyResults("result", doc.GetAllocator());
-        rapidjson::Value valResults(rapidjson::kArrayType);
-        for(int i = 0; i < results.size(); i++)
+        return image_data;
+        // publish_socket_.send(json_str, ZMQ_SNDMORE);
+        // publish_socket_.send(frame->get_image_size(), frame_data_copy, 0);
+    }
+
+    void InairaMLPlugin::setSocketAddr(std::string value)
+    {
+        if(publish_socket_.has_bound_endpoint(value))
         {
-            rapidjson::Value value(results[i]);
-            valResults.PushBack(value, doc.GetAllocator());
+            LOG4CXX_WARN(logger_, "Socket already bound to " << value <<". Ignoring");
+            return;
         }
-        doc.AddMember(keyResults, valResults, doc.GetAllocator());
 
-        rapidjson::StringBuffer buffer;
-        buffer.Clear();
-        rapidjson::Writer<rapidjson::StringBuffer, rapidjson::UTF8<> > writer(buffer);
-        doc.Accept(writer);
-        //print the json out real quick for debug purposes
-        LOG4CXX_DEBUG(logger_, "Json:" << buffer.GetString());
+        try
+        {
+            uint32_t linger = 0;
+            publish_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+            publish_socket_.unbind(data_socket_addr_.c_str());
 
-        publish_socket_.send(buffer.GetString());
+            is_bound_ = false;
+            data_socket_addr_ = value;
 
+            LOG4CXX_INFO(logger_, "Setting Result Socket Address to " << data_socket_addr_);
+            publish_socket_.bind(data_socket_addr_);
+            is_bound_ = true;
+            LOG4CXX_INFO(logger_, "Socket Bound Successfully.");
+        }
+        catch(zmq::error_t& e)
+        {
+            LOG4CXX_ERROR(logger_, "Error binding socket to address " << value << " Error Code: " << e.num());
+        }
     }
 }

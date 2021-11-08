@@ -144,14 +144,12 @@ class FrameProducer():
             time.sleep(1.0)
             self.notify_buffer_config()
 
-            #Load the test images 
+            file_list = listdir(testfilespath)
 
-            totalimages = 0
+            # Loop over the specified number of frames and transmit them
+            self.logger.info("Sending %d frames to processor\n", self.config.frames)
+            self.logger.info("Total Frame count: %d", len(file_list))
 
-            # Number of files in directory
-            for files in walk(imgs_path):
-                for Files in files:
-                    totalimages += 1
 
             # Loop over the specified number of frames and transmit them
             self.logger.info("Sending %d frames to processor\n", frames)
@@ -164,6 +162,9 @@ class FrameProducer():
                 try:
                     # Frame producer code here 
                     self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", self.frame)
+
+                    # Set image path based on frame number
+                    testimage = file_list[frame%len(file_list)]
 
                     # Set image path based on frame number
                     testimage = listdir(imgs_path)[self.frame%totalimages]

@@ -14,7 +14,14 @@ namespace FrameProcessor
         logger_->setLevel(Level::getAll());
         LOG4CXX_TRACE(logger_, "Inaira cppflow link loaded");
 
-        // cppflow::model model_("coolpredictor");
+        LOG4CXX_DEBUG(logger_, "SETTING GPU CONFIG OPTIONS");
+        
+        std::vector<uint8_t> config{0x32,0xb,0x9,0x00,0x00,0x00,0x00,0x00,0x00,0xe0,0x3f,0x20,0x1};
+
+        TFE_ContextOptions* options = TFE_NewContextOptions();
+        TFE_ContextOptionsSetConfig(options, config.data(), config.size(), cppflow::context::get_status());
+        cppflow::get_global_context() = cppflow::context(options);
+
     }
 
     InairaMLCppflow::~InairaMLCppflow()
