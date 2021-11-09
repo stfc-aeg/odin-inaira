@@ -75,9 +75,6 @@ class FrameProducer():
             self.config.release_endpoint
         )
 
-        # Create a thread to handle frame release messages
-        self.release_thread = threading.Thread(target=self.process_release)
-
         # Create the queue to contain available buffer IDs and precharge it with all available
         # shared memory buffers
         self.free_buffer_queue = queue.Queue()
@@ -93,6 +90,15 @@ class FrameProducer():
 
         # Set the internal run flag to true
         self._run = True
+
+        
+        self.frame = 0
+
+        # Create a thread to handle frame release messages
+        self.release_thread = threading.Thread(target=self.process_release)
+
+        # Start the release channel processing thread
+        self.release_thread.start()
 
     def get_next_msg_id(self):
         """Increment and return the next message ID for IPC messages."""
@@ -117,103 +123,124 @@ class FrameProducer():
         #Convert from rgb to gray
         return np.dot(img[...,:3],[0.2989, 0.5870, 0.1140])
 
-    def run(self):
-        """Run the frame producer main event loop."""
+    def run(self, frames, fps, imgs_path, camera_emulator):
 
-        # Start the release channel processing thread
-        self.release_thread.start()
+        try:
+            """Run the frame producer main event loop."""
 
-        # Allow the IPC channels to connect and then notify the frame processor of the buffer
-        # configuration
-        time.sleep(1.0)
-        self.notify_buffer_config()
+            # Check if config from camera emulator is not None
+            if frames == None:
+                frames = self.config.frames
 
-        # Set the number of bytes for a simulated frame to the shared buffer size. This will need
-        # to be modified once a frame header is defined and used
-        num_bytes = self.config.shared_buffer_size
+            if fps == None:
+                fps = self.config.frames_per_second
 
-        #Load the test images
-        testfilespath = self.config.testfile_path 
-        self.logger.debug("testfilespath = " + testfilespath)
+            if imgs_path == None:
+                imgs_path = self.config.testfile_path
 
-        file_list = listdir(testfilespath)
 
-        # Loop over the specified number of frames and transmit them
-        self.logger.info("Sending %d frames to processor\n", self.config.frames)
-        self.logger.info("Total Frame count: %d", len(file_list))
+            # Allow the IPC channels to connect and then notify the frame processor of the buffer
+            # configuration
+            time.sleep(1.0)
+            self.notify_buffer_config()
 
-        sendframes = True
-        frame = 0
+            file_list = listdir(testfilespath)
 
-        while sendframes:
+            # Loop over the specified number of frames and transmit them
+            self.logger.info("Sending %d frames to processor\n", self.config.frames)
+            self.logger.info("Total Frame count: %d", len(file_list))
 
-            try:
-                # Frame producer code here 
-                self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", frame)
 
-                # Set image path based on frame number
-                testimage = file_list[frame%len(file_list)]
+            # Loop over the specified number of frames and transmit them
+            self.logger.info("Sending %d frames to processor\n", frames)
 
-                # Load image
-                vals = io.imread(join(testfilespath,testimage))
+            self.frame = 0
+            self.send_frames = True
 
-                # Is the image RGB or Grayscale?
-                if (len(vals.shape) >= 3):
-                    # Convert to Grayscale
-                    vals = self.rgb2gray(vals)
-                    
-                    # Correct data type
-                    vals = vals.astype(np.uint8)
+            while self.send_frames:
 
-                # Debugging of image loading
-                self.logger.debug("The filename is " + testimage)
-                self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
+                try:
+                    # Frame producer code here 
+                    self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", self.frame)
 
-                # Pop the first free buffer off the queue
-                # TODO deal with empty queue??
-                buffer = self.free_buffer_queue.get()
+                    # Set image path based on frame number
+                    testimage = file_list[frame%len(file_list)]
 
-                # Split image shape from (x, y) into x and y
-                imageshape = vals.shape
-                imagewidth = imageshape[0]
-                imageheight = imageshape[1]
-                self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
+                    # Set image path based on frame number
+                    testimage = listdir(imgs_path)[self.frame%totalimages]
 
-                # What is the dtype outputting
-                self.logger.debug("Data Type: " + str(vals.dtype))
-                self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
+                    # Load image
+                    vals = io.imread(join(imgs_path,testimage))
 
-                # Create struct with these parameters for the header
-                # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
-                header = struct.pack("iiiii", frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
+                    # Is the image RGB or Grayscale?
+                    if (len(vals.shape) >= 3):
+                        # Convert to Grayscale
+                        vals = self.rgb2gray(vals)
+                        
+                        # Correct data type
+                        vals = vals.astype(np.uint8)
 
-                # Copy the image nparray directly into the buffer as bytes
-                self.logger.debug("Filling frame %d into buffer %d", frame, buffer)
-                self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
+                    # Debugging of image loading
+                    self.logger.debug("The filename is " + testimage)
+                    self.logger.debug("The first 10 frame values: " + str(vals[0][:10]))
 
-                # Notify the processor that the frame is ready in the buffer
-                self.notify_frame_ready(frame, buffer)
+                    # Pop the first free buffer off the queue
+                    # TODO deal with empty queue??
+                    buffer = self.free_buffer_queue.get()
 
-                self.logger.debug("----- Creation of frame %d complete -----\n\n", frame)
+                    # Split image shape from (x, y) into x and y
+                    imageshape = vals.shape
+                    imagewidth = imageshape[0]
+                    imageheight = imageshape[1]
+                    self.logger.debug("Width " + str(imagewidth) + " Height " + str(imageheight) + "\n")
 
-                # Sent frames at a set frame rate using config
-                time.sleep(1/self.config.frames_per_second)
+                    # What is the dtype outputting
+                    self.logger.debug("Data Type: " + str(vals.dtype))
+                    self.logger.debug("Data Type Enumeration: " + str(self.get_dtype_enumeration(vals.dtype.name)) + "\n")
 
-                # Next frame
-                frame += 1
+                    # Create struct with these parameters for the header
+                    # frame_header, (currently ignoring)frame_state, frame_start_time_secs, frame_start_time_nsecs, frame_width, frame_height, frame_data_type, frame_size
+                    header = struct.pack("iiiii", self.frame, imagewidth, imageheight, self.get_dtype_enumeration(vals.dtype.name), vals.size)
 
-                # Are all frames sent?
-                if (frame == (self.config.frames)):
-                    sendframes = False
+                    # Copy the image nparray directly into the buffer as bytes
+                    self.logger.debug("Filling frame %d into buffer %d", self.frame, buffer)
+                    self.shared_buffer_manager.write_buffer(buffer, header + vals.tobytes())
 
-            except KeyboardInterrupt:
-                sendframes = False
+                    # Notify the processor that the frame is ready in the buffer
+                    self.notify_frame_ready(self.frame, buffer)
 
+                    self.logger.debug("----- Creation of frame %d complete -----\n\n", self.frame)
+
+                    # Sent frames at a set frame rate using config
+                    time.sleep(1/fps)
+
+                    # Next frame
+                    self.frame += 1
+
+                    # Are all frames sent?
+                    if (self.frame == (frames)):
+                        self.send_frames = False
+
+                except KeyboardInterrupt:
+                    self.send_frames = False
+
+            # Update state of the emulator
+            camera_emulator.state = 2
+            
+        except Exception:
+            self.send_frames = False
+            self.logger.warning("Error in frame producer")
+
+        self.logger.info("Frame producer stopping")
+       
+        
+
+    def stop(self):
         # Clear the run flag and wait for the release processing thread to terminate
         self._run = False
         self.release_thread.join()
 
-        self.logger.info("Frame producer terminating")
+        self.logger.info("Frame Producer Terminating")
 
     def process_release(self):
         """Handle buffer release notifications from the frame processor."""
@@ -279,9 +306,7 @@ class FrameProducer():
 @click.command()
 @click.option('--config', help="The path to the required yml config file.")
 def main(config):
-
     fp = FrameProducer(config)
-    fp.run()
 
 if __name__ == "__main__":
     main()

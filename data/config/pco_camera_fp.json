@@ -1,0 +1,98 @@
+[
+    {
+        "fr_setup": {
+            "fr_ready_cnxn":"tcp://127.0.0.1:5001",
+            "fr_release_cnxn":"tcp://127.0.0.1:5002"
+        },
+    "meta_endpoint":"tcp://*:5008"
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"pcocamera",
+                "name":"PcoCameraProcessPlugin",
+                "library":"./lib/libPcoCameraProcessPlugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"liveview",
+                "name":"LiveViewPlugin",
+                "library":"./lib/libLiveViewPlugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"hdf",
+                "name":"FileWriterPlugin",
+                "library":"./lib/libHdf5Plugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"pcocamera",
+                "connection":"frame_receiver"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"liveview",
+                "connection":"pcocamera"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"hdf",
+                "connection":"pcocamera"
+            }
+        }
+    },
+    {
+        "pcocamera": {
+            "decode_header": true
+        }
+    },
+    {
+        "liveview": {
+            "live_view_socket_addr":"tcp://127.0.0.1:5020"
+        }
+    },
+    {
+        "hdf":
+        {
+            "dataset": "pco"
+        }
+    },
+    {
+        "hdf":
+        {
+            "dataset":
+            {
+                "pco":
+                {
+                    "datatype":"uint16",
+                    "dims":[2160, 2560],
+                    "compression":"none"
+                }
+            },
+            "file":
+            {
+                "path":""
+            },
+            "frames":10,
+            "acquisition_id":"test_1",
+            "write":true
+        }   
+    }
+
+]
