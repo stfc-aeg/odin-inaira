@@ -472,6 +472,34 @@ void PcoCameraLinkController::stop_recording(void)
 {
     DWORD pco_error;
 
+    // Set the camera recording flag to false so that the service thread acquisition loop
+    // exits acquisition. Wait for the acquisition of the last image to complete
+    camera_recording_ = false;
+
+    if (camera_status_.acquiring_)
+    {
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Waiting for camera image acquisition to complete");
+
+        // Calculate max retries as twice the current image timeout in milliseconds
+        unsigned int max_retries = static_cast<int>(camera_config_.image_timeout_ * 1000 * 2);
+        unsigned int num_retries = 0;
+
+        // Loop until image acquisition is complete or a timeout is reached
+        while (camera_status_.acquiring_ && num_retries++ < max_retries)
+        {
+            usleep(1000);
+        }
+        if (!camera_status_.acquiring_)
+        {
+            LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera image acquisition completed");
+        }
+        else
+        {
+            LOG4CXX_ERROR(logger_, "Image acquisition completion timed out after "
+                << max_retries << " retries.");
+        }
+    }
+
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to stopped");
     pco_error = camera_->PCO_SetRecordingState(0);
     if (pco_error != PCO_NOERROR)
@@ -481,7 +509,6 @@ void PcoCameraLinkController::stop_recording(void)
         this->disconnect();
         return;
     }
-    camera_recording_ = false;
 }
 
 //! Runs the camera control loop service
@@ -605,6 +632,13 @@ void PcoCameraLinkController::run_camera_service(void)
             // report the number of frames acquired
             if (camera_status_.acquiring_)
             {
+                pco_error = grabber_->Stop_Acquire();
+                if (pco_error != PCO_NOERROR)
+                {
+                    LOG4CXX_ERROR(logger_,
+                        "Failed to stop frame grabber acquisition with error code 0x"
+                        << std::hex << pco_error << std::dec);
+                }
                 LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller finished acquiring after "
                     << camera_status_.frames_acquired_ << " frames");
                 camera_status_.acquiring_ = false;
