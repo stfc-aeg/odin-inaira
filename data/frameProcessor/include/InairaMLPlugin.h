@@ -37,6 +37,8 @@ namespace FrameProcessor
 
             void setSocketAddr(std::string value);
 
+            void setSocketAddr(std::string value);
+
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
             static const std::string CONFIG_MODEL_OUTPUT_LAYER;
@@ -44,6 +46,7 @@ namespace FrameProcessor
             static const std::string CONFIG_RESULT_DEST;
             static const std::string CONFIG_SEND_RESULTS;
             static const std::string CONFIG_SEND_IMAGE;
+
 
             std::string model_path;
             bool decode_header;
@@ -56,6 +59,7 @@ namespace FrameProcessor
             bool is_bound_;
             bool send_results_;
             bool send_image_;
+
 
             int32_t avg_process_time;
             int32_t total_process_time;
