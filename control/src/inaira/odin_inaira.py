@@ -49,16 +49,16 @@ class OdinInaira(object):
         logging.debug("Inistialising INAIRA Adapter")
 
         # Save and initialise argumenets
-        self.frame_process_time = None
-        self.total_process_time = None
-        self.pass_ratio = None
-        self.good_frames = None
-        self.classification = None
-        self.certainty = None
-        self.frame_number = None
-        self.process_time = None
-        self.avg_process_time = None
-        self.total_frames = None
+        self.frame_process_time = 10
+        self.total_process_time = 11
+        self.pass_ratio = 1
+        self.good_frames = 1
+        self.classification = "Good"
+        self.certainty = 1
+        self.frame_number = 1
+        self.process_time = 1
+        self.avg_process_time = 1
+        self.total_frames = 1
 
         self.process_live_image = live_image
 

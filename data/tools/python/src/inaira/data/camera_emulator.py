@@ -17,17 +17,13 @@ from zmq.utils.strtypes import cast_bytes
 from odin_data.ipc_channel import IpcChannel, IpcChannelException
 from odin_data.ipc_message import IpcMessage, IpcMessageException
 
-#TODO
-# - Error Handling
-# - State update when the rame producer has finished
-
-class CameraEmulator:
+class CameraEmulator():
 
 
     def __init__(self, endpoint):
 
         self.endpoint = endpoint
-
+        
         # Create a logger and set level to debug
         self.logger = logging.getLogger(os.path.basename(sys.argv[0]))
         self.logger.setLevel(logging.DEBUG)
@@ -45,6 +41,7 @@ class CameraEmulator:
         # Add the handler to the logger
         self.logger.addHandler(handler)
 
+        self.logger.info(self.endpoint)
         self.ctrl_channel = IpcChannel(IpcChannel.CHANNEL_TYPE_ROUTER, self.endpoint)
         self._run_server = False
 
@@ -255,7 +252,7 @@ def shut_down_producer(self):
 
 
 @click.command()
-@click.option("--ctrl", default="tcp://127.0.0.1:5061", show_default=True,
+@click.option("--ctrl", default="tcp://127.0.0.1:5060", show_default=True,
     help="Camera control channel endpoint URL", metavar="URL")
 def main(ctrl):
 

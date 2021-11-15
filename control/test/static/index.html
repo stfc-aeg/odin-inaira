@@ -24,9 +24,9 @@
         <script src="js/bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
         <script src="js/bootstrap-3.3.6-dist/js/bootstrap-switch.min.js"></script>
         <script src="js/bootstrap-slider-10.2.1/js/bootstrap-slider.min.js"></script>
-        <script src="js/frame_updater.js"></script>
-        <script src='js/live_view.js'></script>
         <script src="js/odin_server.js"></script>
+        <script src='js/live_view.js'></script>
+        
 
 
         <nav class="navbar navbar-inverse navbar-fixed-top">
@@ -80,28 +80,29 @@ Add:
                             <div class ="row"><!-- Camera config input -->
                                 <section class="column screen-third">
                                     <label> Frame Rate </label>
-                                    <input type="number" name="frame_rate">
+                                    <input type="number" id="frame_rate">
                                 </section>
                                 <section class="column screen-third">
                                     <label> Exposure Time </label>
-                                    <input type="number" name="exposure_time">
+                                    <input type="number" id="exposure_time">
                                 </section>
                                 <section class="column screen-third">
                                     <label> Number of Frames </label>
-                                    <input type="num_frames" name="num_frames">
+                                    <input type="number" id="num_frames">
                                 </section>
                             </div> <!-- End of Row -->
                             <div class ="row">
                                 <section class="column screen-third">
                                     <label> Image Timeout </label>
-                                    <input type="number" name="image_timeout">
+                                    <input type="number" id="image_timeout">
                                 </section>
                                 <section class="column screen-third">
                                     <label> Camera Num </label>
-                                    <input type="number" name="camera_num">
+                                    <input type="number" id="camera_num">
                                 </section>
                                 <section class="column screen-third">
-                                    <button type="button" id="sendConfig" onclick="sendConfig()" class="">Send Config</button>
+                                    <button type="button" id="sendConfig" onclick="send_config()" class="">Send Config</button>
+                                    <button type="button" id="getConfig" onclick="get_config()" class="">Get Config</button>
                                 </section>
                             </div> <!-- End of Row -->
                         </div>
