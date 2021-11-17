@@ -6,8 +6,8 @@
   shared_mem_size: 1600000000
   shared_buffer_size: 4000000
   boost_mmap_mode: false
-  ready_endpoint: tcp://0.0.0.0:5061
-  release_endpoint: tcp://0.0.0.0:5062
+  ready_endpoint: tcp://0.0.0.0:5001
+  release_endpoint: tcp://0.0.0.0:5002
   frames: 0
   testfile_path: '/aeg_sw/work/projects/inaira/odin-inaira/data/Test-Images/'
   frames_per_second: 1

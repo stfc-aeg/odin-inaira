@@ -69,8 +69,8 @@ Add:
                         </div>
                         <div class="row well" name="state_machine"> <!-- State Displat and State Switcher-->
                             <section class="column screen-half">
-                                <button type="button" id="stateUp" onclick="stateUp()" class="">Move State Up</button>
-                                <button type="button" id="stateDown" onclick="stateDown()" class="">Move State Down</button>
+                                <button type="button" id="stateUp" onclick='change_state("up")'></button>
+                                <button type="button" id="stateDown" onclick='change_state("down")'></button>
                             </section>
                             <section class="column screen-half">
                                 <label name="stateName"> This will display the state name</label>
@@ -104,6 +104,14 @@ Add:
                                     <button type="button" id="sendConfig" onclick="send_config()" class="">Send Config</button>
                                     <button type="button" id="getConfig" onclick="get_config()" class="">Get Config</button>
                                 </section>
+                            </div> <!-- End of Row -->
+                            <div class="row">
+                                <section class="column screen-full">
+                                    <textarea id="status" readonly>
+
+                                    </textarea>
+                                </section>
+                                
                             </div> <!-- End of Row -->
                         </div>
 

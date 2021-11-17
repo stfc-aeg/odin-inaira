@@ -37,11 +37,15 @@ class CameraController():
         self.connected = False
 
         self.frame_timeout_ms = 1000
-        self.camera_num = 0
-        self.exposure_time = 0.01
-        self.frame_rate = 100
-        self.image_timeout = 10.0
-        self.num_frames = 10
+        self.camera_num = 69420
+        self.exposure_time = 100
+        self.frame_rate = 1
+        self.image_timeout = 200
+        self.num_frames = 10000
+        
+        self.acquiring = False
+        self.frames_acquired = 0
+        self.state = "disconnected"
 
         camera_config = self._request_config()
         if camera_config['msg_type'] == "ack":
@@ -56,7 +60,14 @@ class CameraController():
             self.num_frames = camera_config['num_frames']
 
         self.status_tree = ParameterTree({
-            "connected": (lambda: self.connected, None)
+            "connected": (lambda: self.connected, None),
+            "acquisition" : {
+                            "acquiring" : (lambda: self.acquiring, None),
+                            "frames_acquired" : (lambda: self.frames_acquired, None)
+                            },
+            "camera" : {
+                        "state": (lambda: self.state, None)
+                        }
         }, mutable=True)
 
         self.config_tree = ParameterTree({
@@ -106,8 +117,9 @@ class CameraController():
         try:
             self.connected = reply.get_msg_type() and reply.get_msg_type() in reply.ACK
             # logging.debug("CONNECTED: {}".format(self.connected))
-            self.status_tree.set('', {"acquisition": reply.get_params().get("acquisition", {})})
-            self.status_tree.set('', {"camera": reply.get_params().get('camera', {})})
+            self.state = reply.get_params().get("camera", "").get("state", "")
+            self.acquiring = reply.get_params().get("acquisition", "").get("acquiring", "")
+            self.frames_acquired = reply.get_params().get("acquisition", "").get("frames_acquired", "")
         except KeyError as err:
             logging.error("Key Not Found: {}".format(err))
 

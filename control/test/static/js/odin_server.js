@@ -4,6 +4,9 @@ $( document ).ready(function() {
 
     update_api_version();
     update_api_adapters();
+    update_state_buttons();
+    get_config();
+    update_status();
 });
 
 function update_api_version() {
@@ -37,22 +40,33 @@ function update_frame_data() {
         else {
             console.log("Frame data is null")
         }
-        
     });
- }
-
-function state_up(){
-
 }
 
-function state_down(){
+function change_state(a){
+    $.ajax({
+        type: "PUT",
+        url: '/api/' + api_version + '/inaira/status_change/',
+        contentType: "application/json",
+        data: '{"change" : "' + a + '"}'
+    });
+    update_state_buttons();
+}
 
+function update_state_buttons(){
+    $.getJSON('/api/' + api_version + '/inaira/', function(response){
+        up_button = get_element_by_id("stateUp");
+        down_button = get_element_by_id("stateDown");
+        up_button.innerText = response.status_change.up_button_text;
+        up_button.enabled = response.status_change.up_button_enabled;
+        down_button.innerText = response.status_change.down_button_text;
+        down_button.enabled = response.status_change.down_button_enabled;
+    });
 }
 
 function get_config(){
     $.getJSON('/api/' + api_version + '/inaira/', function(response){
-        camera_config = response.camera_control.config.camera;
-        
+        camera_config = response.camera_control.config.camera
         get_element_by_id("frame_rate").value = camera_config.frame_rate;
         get_element_by_id("exposure_time").value = camera_config.exposure_time;
         get_element_by_id("num_frames").value = camera_config.num_frames;
@@ -80,8 +94,15 @@ function get_element_by_id(element_id){
     return document.getElementById(element_id);
 }
 
-function get_status(){
-    
+function update_status(){
+    $.getJSON('/api/' + api_version + '/inaira/camera_control/status/', function(response){
+        get_element_by_id("status").value = JSON.stringify(response)
+    });
+    update_status_timer();
+}
+
+function update_status_timer(){
+    setTimeout(update_status, 1000);
 }
 
 function change_enable() {

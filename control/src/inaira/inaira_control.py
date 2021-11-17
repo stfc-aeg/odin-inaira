@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import time
 
 
 from odin.adapters.parameter_tree import ParameterTree, ParameterTreeError
@@ -22,12 +23,27 @@ class InairaControl():
         self.logger = logging.getLogger(os.path.basename(sys.argv[0]))
         self.logger.setLevel(logging.DEBUG)
 
-        self.frame_rate = 12
+        self.change = None
+        self.state_up_button_text = "Connect"
+        self.state_up_button_enabled = True
+        self.state_down_button_text = "Disconnect"
+        self.state_down_button_enabled = False
+
+        # Store initialisation time
+        self.init_time = time.time()
+
+        self.status_change = ParameterTree({
+            'change' : (lambda: self.change, self.update_state),
+            'down_button_text' : (lambda: self.state_down_button_text, None),
+            'down_button_enabled' : (lambda: self.state_down_button_enabled, None),
+            'up_button_text' : (lambda: self.state_up_button_text, None),
+            'up_button_enabled' : (lambda: self.state_up_button_enabled, None)
+        })
 
         self.param_tree = ParameterTree({
             'odin_inaira' : self.odin_inaira.param_tree,
             'camera_control' : self.camera_controller.param_tree,
-            'frame_rate' : (lambda: self.frame_rate, lambda a: self.logger.info("You set the frame rate... also whever this is: " + str(a)))
+            'status_change' : self.status_change
         })
 
 
@@ -41,6 +57,58 @@ class InairaControl():
 
     def set(self, path, data):
         return self.param_tree.set(path, data)
+
+    def update_state(self, state_change):
+        # Set the button text as their defaults.
+        up_text = self.state_up_button_text
+        up_enabled = self.state_up_button_enabled
+        down_text = self.state_down_button_text
+        down_enabled = self.state_down_button_enabled
+
+        command = None
+        state = self.camera_controller.state
+        self.logger.debug("The cameras state is:" + state)
+        if state == "disconnected":
+            if state_change == "up":
+                command = "connect"
+                up_text, down_text, up_enabled, down_enabled = "Arm", "Disconnect", True, True
+            else:
+                command = ""
+                self.logger.warn("Incorrect State Change Request: A camera in the disconnected state cannot be disconnected further")
+        elif state == "connected":
+            if state_change == "up":
+                command = "arm"
+                up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True
+            else:
+                command = "disconnect"
+                up_text, down_text, up_enabled, down_enabled = "Connect", "Disconnect", True, False
+        elif state == "armed":
+            if state_change == "up":
+                command = "start"
+                up_text, down_text, up_enabled, down_enabled = "Start", "Stop", False, True
+            else:
+                command = "disarm"
+                up_text, down_text, up_enabled, down_enabled = "Start", "Disconnect", True, True
+        elif state == "running":
+            if state_change == "down":
+                command = "stop"
+                up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True
+            else:
+                command = ""
+                self.logger.warn("Incorrect State Change Request: A camera in the running state cannot be told to run more")
+        try:
+            self.camera_controller.do_command(command)
+        except:
+            self.logger.warn("Error or something.. I need to improve the error handling :D")
+            # Also if this fails then this should braek out of this here :D
+        
+        self.state_up_button_text = up_text
+        self.state_up_button_enabled = up_enabled
+        self.state_down_button_text = down_text
+        self.state_down_button_enabled = down_enabled
+
+    def get_server_uptime(self):
+        return time.time() - self.init_time
 
     def cleanup(self):
         self.odin_inaira.cleanup()

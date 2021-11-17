@@ -58,6 +58,7 @@ class FrameProducer():
         )
 
         # Create the frame ready channel and bind it to the endpoint
+        self.logger.debug(self.config.ready_endpoint)
         self.ready_channel = IpcChannel(IpcChannel.CHANNEL_TYPE_PUB)
         self.ready_channel.bind(self.config.ready_endpoint)
         self.logger.debug(
@@ -144,7 +145,7 @@ class FrameProducer():
             time.sleep(1.0)
             self.notify_buffer_config()
 
-            file_list = listdir(testfilespath)
+            file_list = listdir(imgs_path)
 
             # Loop over the specified number of frames and transmit them
             self.logger.info("Sending %d frames to processor\n", self.config.frames)
@@ -164,10 +165,7 @@ class FrameProducer():
                     self.logger.debug(" ----- Beginning creation of frame %d -----\n\n", self.frame)
 
                     # Set image path based on frame number
-                    testimage = file_list[frame%len(file_list)]
-
-                    # Set image path based on frame number
-                    testimage = listdir(imgs_path)[self.frame%totalimages]
+                    testimage = file_list[self.frame%len(file_list)]
 
                     # Load image
                     vals = io.imread(join(imgs_path,testimage))
@@ -227,9 +225,8 @@ class FrameProducer():
             # Update state of the emulator
             camera_emulator.state = 2
             
-        except Exception:
+        except FrameProducerError:
             self.send_frames = False
-            self.logger.warning("Error in frame producer")
 
         self.logger.info("Frame producer stopping")
        
@@ -303,6 +300,9 @@ class FrameProducer():
         ready_msg.set_param('buffer_id', buffer)
         self.ready_channel.send(ready_msg.encode())
 
+class FrameProducerError(Exception):
+    logging.error("Error in the frame producer.")
+    pass
 @click.command()
 @click.option('--config', help="The path to the required yml config file.")
 def main(config):

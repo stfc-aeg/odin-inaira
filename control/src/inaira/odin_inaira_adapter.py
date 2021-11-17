@@ -17,6 +17,7 @@ from tornado.escape import json_decode
 from odin.adapters.adapter import ApiAdapter, ApiAdapterResponse, request_types, response_types
 from odin.adapters.parameter_tree import ParameterTree, ParameterTreeError
 from odin._version import get_versions
+from odin.util import decode_request_body
 
 from .odin_inaira import OdinInaira, OdinInairaError
 
@@ -90,7 +91,7 @@ class OdinInairaAdapter(ApiAdapter):
         content_type = 'application/json'
 
         try:
-            data = json_decode(request.body)
+            data = decode_request_body(request)
             self.odin_inaira.set(path, data)
             response = self.odin_inaira.get(path)
             status_code = 200

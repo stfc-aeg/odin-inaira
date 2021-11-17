@@ -3,7 +3,6 @@ import logging
 import tornado
 import time
 import sys
-from concurrent import futures
 
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.concurrent import run_on_executor
@@ -12,6 +11,7 @@ from tornado.escape import json_decode
 from odin.adapters.adapter import ApiAdapter, ApiAdapterResponse, request_types, response_types
 from odin.adapters.parameter_tree import ParameterTreeError
 from odin._version import get_versions
+from odin.util import decode_request_body
 
 from .inaira_control import InairaControl, InairaControlError
 
@@ -78,7 +78,9 @@ class InairaControlAdapter(ApiAdapter):
         content_type = 'application/json'
 
         try:
-            data = json_decode(request.body)
+            logging.debug(request.body)
+            data = decode_request_body(request)
+            logging.debug(data)
             self.inaira_control.set(path, data)
             response = self.inaira_control.get(path)
             status_code = 200
