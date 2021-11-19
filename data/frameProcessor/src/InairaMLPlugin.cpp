@@ -268,32 +268,4 @@ namespace FrameProcessor
             LOG4CXX_ERROR(logger_, "Error binding socket to address " << value << " Error Code: " << e.num());
         }
     }
-
-    void InairaMLPlugin::setSocketAddr(std::string value)
-    {
-        if(publish_socket_.has_bound_endpoint(value))
-        {
-            LOG4CXX_WARN(logger_, "Socket already bound to " << value <<". Ignoring");
-            return;
-        }
-
-        try
-        {
-            uint32_t linger = 0;
-            publish_socket_.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
-            publish_socket_.unbind(data_socket_addr_.c_str());
-
-            is_bound_ = false;
-            data_socket_addr_ = value;
-
-            LOG4CXX_INFO(logger_, "Setting Result Socket Address to " << data_socket_addr_);
-            publish_socket_.bind(data_socket_addr_);
-            is_bound_ = true;
-            LOG4CXX_INFO(logger_, "Socket Bound Successfully.");
-        }
-        catch(zmq::error_t& e)
-        {
-            LOG4CXX_ERROR(logger_, "Error binding socket to address " << value << " Error Code: " << e.num());
-        }
-    }
 }
