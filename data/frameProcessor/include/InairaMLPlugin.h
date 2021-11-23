@@ -37,7 +37,6 @@ namespace FrameProcessor
 
             void setSocketAddr(std::string value);
 
-            void setSocketAddr(std::string value);
 
             static const std::string CONFIG_MODEL_PATH;
             static const std::string CONFIG_MODEL_INPUT_LAYER;
