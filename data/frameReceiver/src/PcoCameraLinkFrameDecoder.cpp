@@ -127,8 +127,17 @@ void PcoCameraLinkFrameDecoder::init(LoggerPtr& logger, OdinData::IpcMessage& co
 
 const size_t PcoCameraLinkFrameDecoder::get_frame_buffer_size(void) const
 {
-  size_t frame_buffer_size = get_frame_header_size() + controller_->get_image_size();
-  LOG4CXX_DEBUG_LEVEL(2, logger_, "Calculated frame buffer size: " << frame_buffer_size);
+  size_t frame_buffer_size = get_frame_header_size();
+
+  if (controller_)
+  {
+    frame_buffer_size += controller_->get_image_size();
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "Calculated frame buffer size: " << frame_buffer_size);
+  }
+  else
+  {
+    LOG4CXX_ERROR(logger_, "Cannot calculate frame buffer size: camera controller not initialised");
+  }
   return frame_buffer_size;
 }
 
@@ -272,28 +281,36 @@ void PcoCameraLinkFrameDecoder::handle_ctrl_channel(void)
 //! TODO - handle failure cases here so that response to client is updated
 //!
 //! \param config_msg - incoming configuration IPC message
-//! \param config_reply - reply to configuration message, currently unused
+//! \param config_reply - reply to configuration message
 
 void PcoCameraLinkFrameDecoder::configure(
   OdinData::IpcMessage& config_msg, OdinData::IpcMessage& config_reply
 )
 {
-  // If the configuration message has camera parameters, copy those into a parameter document
-  // and tell the controller to update its configuration
-  if (config_msg.has_param(CAMERA_CONFIG_PATH))
+  if (controller_)
   {
-    ParamContainer::Document config_params;
-    config_msg.encode_params(config_params, CAMERA_CONFIG_PATH);
-    controller_->update_configuration(config_params);
-  }
+    // If the configuration message has camera parameters, copy those into a parameter document
+    // and tell the controller to update its configuration
+    if (config_msg.has_param(CAMERA_CONFIG_PATH))
+    {
+      ParamContainer::Document config_params;
+      config_msg.encode_params(config_params, CAMERA_CONFIG_PATH);
+      controller_->update_configuration(config_params);
+    }
 
-  // If the configuration message has a command parameter, extract the command value and pass
-  // to the controller
-  if (config_msg.has_param(CAMERA_COMMAND_PATH))
+    // If the configuration message has a command parameter, extract the command value and pass
+    // to the controller
+    if (config_msg.has_param(CAMERA_COMMAND_PATH))
+    {
+      std::string command = config_msg.get_param<std::string>(CAMERA_COMMAND_PATH);
+      LOG4CXX_DEBUG_LEVEL(2, logger_, "Config request has command: " << command);
+      controller_->execute_command(command);
+    }
+  }
+  else
   {
-    std::string command = config_msg.get_param<std::string>(CAMERA_COMMAND_PATH);
-    LOG4CXX_DEBUG_LEVEL(2, logger_, "Config request has command: " << command);
-    controller_->execute_command(command);
+    LOG4CXX_ERROR(logger_, "Cannot configure camera: controller not initialised");
+    config_reply.set_param("error", std::string("camera controller not initialised"));
   }
 }
 
@@ -313,14 +330,24 @@ void PcoCameraLinkFrameDecoder::request_configuration(
   // Call the base class method to populate parameters
   FrameDecoderCameraLink::request_configuration(param_prefix, config_reply);
 
-  // Create a new param document and pass to the controller to populate with the appropriate
-  // parameter prefix
-  ParamContainer::Document camera_config;
-  std::string camera_config_prefix = param_prefix + CAMERA_CONFIG_PATH;
-  controller_->get_configuration(camera_config, camera_config_prefix);
+  if (controller_)
+  {
+    // Create a new param document and pass to the controller to populate with the appropriate
+    // parameter prefix
+    ParamContainer::Document camera_config;
+    std::string camera_config_prefix = param_prefix + CAMERA_CONFIG_PATH;
+    controller_->get_configuration(camera_config, camera_config_prefix);
 
-  // Update the reply message parameters with the config document
-  config_reply.update(camera_config);
+    // Update the reply message parameters with the config document
+    config_reply.update(camera_config);
+  }
+  else
+  {
+    LOG4CXX_ERROR(logger_, "Cannot request camera configuration: controller not initialised");
+    config_reply.set_param(
+      param_prefix + "error", std::string("camera controller not initialised")
+    );
+  }
 }
 
 //! Returns the current status of the camera in an IPC message.
@@ -339,13 +366,23 @@ void PcoCameraLinkFrameDecoder::get_status(
   // Insert the decoder name into the reply
   status_reply.set_param(param_prefix + "name", std::string("PcoCameraLinkFrameDecoder"));
 
-  // Create a new parame document and pass to the controller to populate with the appropriate
-  // parameter prefix
-  ParamContainer::Document camera_status;
-  controller_->get_status(camera_status, param_prefix);
+  if (controller_)
+  {
+    // Create a new parame document and pass to the controller to populate with the appropriate
+    // parameter prefix
+    ParamContainer::Document camera_status;
+    controller_->get_status(camera_status, param_prefix);
 
-  // Update the reply message parameters with the status document
-  status_reply.update(camera_status);
+    // Update the reply message parameters with the status document
+    status_reply.update(camera_status);
+  }
+  else
+  {
+    LOG4CXX_ERROR(logger_, "Cannot request camera status: controller not initialised");
+    status_reply.set_param(
+      param_prefix + "error", std::string("camera controller not initialised")
+    );
+  }
 }
 
 // Private methods
@@ -357,7 +394,14 @@ void PcoCameraLinkFrameDecoder::get_status(
 
 void PcoCameraLinkFrameDecoder::run_camera_service(void)
 {
-  LOG4CXX_DEBUG_LEVEL(2, logger_, "PCO camera service thread entry");
-  controller_->run_camera_service();
-  LOG4CXX_DEBUG_LEVEL(2, logger_, "PCO camera service thread exit");
+  if (controller_)
+  {
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "PCO camera service thread entry");
+    controller_->run_camera_service();
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "PCO camera service thread exit");
+  }
+  else
+  {
+    LOG4CXX_ERROR(logger_, "Cannot start camera service thread: controller not initialised");
+  }
 }
