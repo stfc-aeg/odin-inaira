@@ -34,6 +34,7 @@ PcoCameraState::PcoCameraState(PcoCameraLinkController* controller) :
     EventDisarm::custom_static_type_ptr("disarm");
     EventRecordStart::custom_static_type_ptr("start");
     EventRecordStop::custom_static_type_ptr("stop");
+    EventReset::custom_static_type_ptr("reset");
 }
 
 //! Executes a state transition command.
@@ -107,6 +108,9 @@ void PcoCameraState::execute_command(PcoCameraState::CommandType command)
             break;
         case CommandStopRecording:
             process_event(EventRecordStop());
+            break;
+        case CommandReset:
+            process_event(EventReset());
             break;
         case CommandUnknown:
             // Deliberate fall-through
@@ -230,6 +234,7 @@ void PcoCameraState::init_command_type_map(void)
     command_type_map_.insert(CommandTypeMapEntry("disarm",     CommandDisarm));
     command_type_map_.insert(CommandTypeMapEntry("start",      CommandStartRecording));
     command_type_map_.insert(CommandTypeMapEntry("stop",       CommandStopRecording));
+    command_type_map_.insert(CommandTypeMapEntry("reset",      CommandReset));
 }
 
 //! Initialises the state type map.
@@ -243,82 +248,144 @@ void PcoCameraState::init_state_type_map(void)
     state_type_map_.insert(StateTypeMapEntry("connected",    StateConnected));
     state_type_map_.insert(StateTypeMapEntry("armed",        StateArmed));
     state_type_map_.insert(StateTypeMapEntry("recording",    StateRecording));
+    state_type_map_.insert(StateTypeMapEntry("error",        StateError));
 }
 
 //! Reacts to connect transition events
 //!
 //! This method reacts to connect transition events in the disconnected state. The controller
-//! connect method is called and the state transits to connected.
+//! connect method is called and the state transits to connected. If the connect calls fails the
+//! state transits to error.
 //!
 //! \param reference to connect event
 
 sc::result Disconnected::react(const EventConnect&)
 {
-    outermost_context().controller_->connect();
-    return transit<Connected>();
+    if (outermost_context().controller_->connect())
+    {
+        return transit<Connected>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
 }
 
 //! Reacts to disconnect transition events
 //!
 //! This method reacts to disconnect transition events in the connected state. The controller
-//! disconnect method is called and the state transits to disconnected.
+//! disconnect method is called and the state transits to disconnected. If the disconnect call fails
+//! the state transits to error.
 //!
 //! \param reference to disconnect event
 
 sc::result Connected::react(const EventDisconnect&)
 {
-    outermost_context().controller_->disconnect();
-    return transit<Disconnected>();
+    if (outermost_context().controller_->disconnect())
+    {
+        return transit<Disconnected>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
 }
 
 //! Reacts to arm transition events
 //!
 //! This method reacts to arm transition events in the connected state. The controller arm method
-//! is called and the state transits to armed.
+//! is called and the state transits to armed. If the arm call fails the state transits to error.
 //!
-//! \param reference to connect event
+//! \param reference to arm event
 
 sc::result Connected::react(const EventArm&)
 {
-    outermost_context().controller_->arm();
-    return transit<Armed>();
+    if (outermost_context().controller_->arm())
+    {
+        return transit<Armed>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
 }
 
 //! Reacts to disarm transition events
 //!
 //! This method reacts to disarm transition events in the armed state. The controller disarm method
-//! is called and the state transits to connected.
+//! is called and the state transits to connected. If the disarm call fails the state transits to
+//! error.
 //!
-//! \param reference to connect event
+//! \param reference to disarm event
 
 sc::result Armed::react(const EventDisarm&)
 {
-    outermost_context().controller_->disarm();
-    return transit<Connected>();
+    if (outermost_context().controller_->disarm())
+    {
+        return transit<Connected>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
 }
 
 //! Reacts to record start transition events
 //!
-//! This method reacts to record state transition events in the conarmednected state. The controller
-//! start_recording method is called and the state transits to recording.
+//! This method reacts to record state transition events in the armed state. The controller
+//! start_recording method is called and the state transits to recording. If the start_recording
+//! call fails the state transits to error.
 //!
-//! \param reference to connect event
+//! \param reference to record start event
 
 sc::result Armed::react(const EventRecordStart&)
 {
-    outermost_context().controller_->start_recording();
-    return transit<Recording>();
+    if (outermost_context().controller_->start_recording())
+    {
+        return transit<Recording>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
 }
 
 //! Reacts to record stop transition events
 //!
 //! This method reacts to record stop transition events in the recording state. The controller
-//! stop_recording state is called and the state transits to armed.
+//! stop_recording method is called and the state transits to armed. If the stop_recording call
+//! fails the state transits to error.
 //!
-//! \param reference to connect event
+//! \param reference to record stop event
 
 sc::result Recording::react(const EventRecordStop&)
 {
-    outermost_context().controller_->stop_recording();
-    return transit<Armed>();
+    if (outermost_context().controller_->stop_recording())
+    {
+        return transit<Armed>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
+}
+
+//! Reacts to reset transition events
+//!
+//! This method reacts to reset transition events in the error state. The controller disconnect
+//! method is called and the state transits to disconnected. If the disconnect method fails the
+//! event is discarded and the state remains in error.
+//!
+//! \param reference to reset event
+
+sc::result Error::react(const EventReset&)
+{
+    if (outermost_context().controller_->disconnect(true))
+    {
+        return transit<Disconnected>();
+    }
+    else
+    {
+        return discard_event();
+    }
 }

@@ -32,6 +32,8 @@ namespace FrameReceiver
 
   class PcoCameraLinkFrameDecoder; // Forward declaration of the decoder class
 
+  const DWORD default_pco_error = -1;
+
   class PcoCameraLinkController
   {
   public:
@@ -67,22 +69,22 @@ namespace FrameReceiver
     void get_status(ParamContainer::Document& params, const std::string param_prefix);
 
     //! Disconnects from the camera
-    void disconnect(void);
+    bool disconnect(bool reset_error_status = false);
 
     //! Connects to the camera
-    void connect(void);
+    bool connect(void);
 
     //! Arms the camera, preparing for recording
-    void arm(void);
+    bool arm(void);
 
     //! Disarms the camera
-    void disarm(void);
+    bool disarm(void);
 
     //! Starts the camera recording, allowing images to be acquired
-    void start_recording(void);
+    bool start_recording(void);
 
     //! Stops the camera recording
-    void stop_recording(void);
+    bool stop_recording(void);
 
     //! Runs the camera control loop service
     void run_camera_service(void);
@@ -100,6 +102,9 @@ namespace FrameReceiver
 
     //! Calculates the image number from the timestamp in the first pixel data
     int image_nr_from_timestamp(void *image_buffer, int shift);
+
+    //! Checks camera error codes, setting camera error status and emitting error messages
+    bool check_pco_error(const std::string message, DWORD pco_error = default_pco_error);
 
     //! Returns a readable error string for a camera error code
     std::string pco_error_text(DWORD pco_error);

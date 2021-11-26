@@ -319,6 +319,15 @@ def stop(ctx):
     ctx.obj["controller"].do_command("stop")
 
 @cli.command()
+@click.pass_context
+def reset(ctx):
+    """Reset error condition on the PCO camera controller.\f
+
+    :param ctx: command execution context
+    """
+    ctx.obj["controller"].do_command("reset")
+
+@cli.command()
 @click.option("--json", "-j", type=click.Path(exists=True),
     help="Specify a JSON file of camera configuration parameters to send")
 @click.argument('vals', nargs=-1, callback=parse_json_args)

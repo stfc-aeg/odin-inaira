@@ -47,32 +47,42 @@ PcoCameraLinkController::PcoCameraLinkController(PcoCameraLinkFrameDecoder* deco
 
     LOG4CXX_INFO(logger_, "Initialising camera system");
 
-    camera_status_.acquiring_ = false;
-    camera_status_.frames_acquired_ = 0;
-
-    // Initialise the camera state machine and connect to the camera to synchronise
-    // configuration settings
-    camera_state_.initiate();
-    camera_state_.execute_command(PcoCameraState::CommandConnect);
-
-    // Arm and start the camera recording so that the image size can be determined from the
-    // frame grabber
-    camera_state_.execute_command(PcoCameraState::CommandArm);
-    camera_state_.execute_command(PcoCameraState::CommandStartRecording);
-
-    pco_error = grabber_->Get_actual_size(&image_width_, &image_height_, NULL);
-    if (pco_error != PCO_NOERROR)
+    // Initialise the camera system. In order for the controller to correctly report the camera
+    // image size to the frame decoder and frame receiver controller, the camera must be connected
+    // to, armed and started recording before the image size can be determined from the grabber.
+    // Any errors in this process will drive the camera state to error and raise a state exception
+    // in the subsequent command execution, which is caught and rethrown as a decoder exception.
+    try
     {
-        LOG4CXX_ERROR(logger_, "Failed to get actual size from grabber with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
-    LOG4CXX_INFO(logger_, "Grabber reports actual size: width: "
-        << image_width_ << " height: " << image_height_);
+        // Initialise the camera state machine and connect to the camera to synchronise
+        // configuration settings
+        camera_state_.initiate();
+        camera_state_.execute_command(PcoCameraState::CommandConnect);
 
-    // Stop the camera recording
-    camera_state_.execute_command(PcoCameraState::CommandStopRecording);
+        // Arm and start the camera recording so that the image size can be determined from the
+        // frame grabber
+        camera_state_.execute_command(PcoCameraState::CommandArm);
+        camera_state_.execute_command(PcoCameraState::CommandStartRecording);
+
+        pco_error = grabber_->Get_actual_size(&image_width_, &image_height_, NULL);
+        if (check_pco_error("Failed to get actual size from grabber", pco_error))
+        {
+            LOG4CXX_INFO(logger_, "Grabber reports actual size: width: "
+                << image_width_ << " height: " << image_height_);
+        }
+        else
+        {
+            throw(FrameDecoderException(camera_status_.error_message_));
+        }
+
+        // Stop the camera recording
+        camera_state_.execute_command(PcoCameraState::CommandStopRecording);
+
+    }
+    catch (PcoCameraStateException&)
+    {
+        throw(FrameDecoderException(camera_status_.error_message_));
+    }
 }
 
 //! Destructor for the controller class
@@ -141,23 +151,14 @@ void PcoCameraLinkController::update_configuration(ParamContainer::Document& par
         pco_error = camera_->PCO_SetTimebase(
             new_delay_exp.delay_timebase_, new_delay_exp.exposure_timebase_
         );
-        if (pco_error != PCO_NOERROR)
-        {
-            LOG4CXX_ERROR(logger_, "Failed to set timebase with error code 0x"
-                << std::hex << pco_error << std::dec);
-                updated = false;
-        }
+        updated &= check_pco_error("Failed to set timebase", pco_error);
 
         // Set the delay and exposure times
         pco_error = camera_->PCO_SetDelayExposure(
             new_delay_exp.delay_time_, new_delay_exp.exposure_time_
         );
-        if (pco_error != PCO_NOERROR)
-        {
-            LOG4CXX_ERROR(logger_, "Failed to set camera delay and exposure with error code 0x"
-                << std::hex << pco_error << std::dec);
-                updated = false;
-        }
+        updated &= check_pco_error("Failed to set camera delay and exposure", pco_error);
+
         if (updated)
         {
             camera_delay_exp_ = new_delay_exp;
@@ -198,11 +199,21 @@ void PcoCameraLinkController::get_status(ParamContainer::Document& params,
 //! Disconnects from the camera.
 //!
 //! This method disconnects from the PCO camera and grabber and is invoked by the camera state
-//! machine on receipt of the appropriate command.
+//! machine on receipt of the appropriate command. The camera error status can also be reset
+//! if requested.
+//!
+//! \param reset_error_status : reset camera error status if true (defaults to false)
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::disconnect(void)
+bool PcoCameraLinkController::disconnect(bool reset_error_status)
 {
     LOG4CXX_INFO(logger_, "Disconnecting camera");
+
+    // Reset camera error status if requested
+    if (reset_error_status)
+    {
+        camera_status_.reset_error_status();
+    }
 
     // Stop the camera recording if necessary
     if (camera_ && camera_recording_) {
@@ -225,6 +236,8 @@ void PcoCameraLinkController::disconnect(void)
         camera_opened_ = false;
         camera_.reset();
     }
+
+    return true;
 }
 
 //! Connects to the camera.
@@ -232,8 +245,10 @@ void PcoCameraLinkController::disconnect(void)
 //! This method connects to the PCO camera and initialises the state of the controller. Camera and
 //! grabber instances are created and opened, and various configuration and status values read
 //! back from the system to synchronise the controller with the camera.
+//!
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::connect(void)
+bool PcoCameraLinkController::connect(void)
 {
 
     DWORD pco_error;
@@ -249,25 +264,17 @@ void PcoCameraLinkController::connect(void)
     camera_.reset(new CPco_com_clhs());
     if (camera_ == NULL)
     {
-        LOG4CXX_ERROR(logger_, "Failed to create PCO camera object");
-        this->disconnect();
-        return;
-
+        check_pco_error("Failed to create PCO camera object");
+        return false;
     }
 
     // Open the camera connection
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Opening PCO camera " << camera_config_.camera_num_);
     pco_error = camera_->Open_Cam(camera_config_.camera_num_);
-    if (pco_error != PCO_NOERROR)
+    camera_opened_ = check_pco_error("Failed to open PCO camera", pco_error);
+    if (!camera_opened_)
     {
-        LOG4CXX_ERROR(logger_, "Failed to open PCO camera with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
-    else
-    {
-        camera_opened_ = true;
+        return false;
     }
 
     // Create a new grabber instance
@@ -275,24 +282,17 @@ void PcoCameraLinkController::connect(void)
     grabber_.reset(new CPco_grab_clhs((CPco_com_clhs*)(camera_.get())));
     if (grabber_ == NULL)
     {
-        LOG4CXX_ERROR(logger_, "Failed to create PCO frame grabber object");
-        this->disconnect();
-        return;
+        check_pco_error("Failed to create PCO frame grabber object");
+        return false;
     }
 
     // Open the grabber connection
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Opening PCO grabber " << camera_config_.camera_num_);
     pco_error = grabber_->Open_Grabber(camera_config_.camera_num_);
-    if (pco_error != PCO_NOERROR)
+    grabber_opened_ = check_pco_error("Failed to open PCO grabber", pco_error);
+    if (!grabber_opened_)
     {
-        LOG4CXX_ERROR(logger_, "Failed to open PCO grabber with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
-    else
-    {
-        grabber_opened_ = true;
+        return false;
     }
 
     // Set the grabber image acquisition timeout
@@ -301,35 +301,25 @@ void PcoCameraLinkController::connect(void)
         << grabber_timeout_ms_ << "ms"
     );
     pco_error = grabber_->Set_Grabber_Timeout(grabber_timeout_ms_);
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to set PCO grabber timeeout", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to set PCO grabber timeeout with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
-
 
     // Read the camera type and serial number
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Getting camera type and serial number");
     pco_error = camera_->PCO_GetCameraType(&camera_type, &camera_serial);
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to get camera type", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to get camera type with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
 
     // Read the camera descriptor to determine the dynamic resolution and pixel data size
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Getting camera descriptor");
     pco_error = camera_->PCO_GetCameraDescriptor(&camera_description);
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to camera descriptor", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to camera descriptor with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
     image_pixel_size_ = floorl((camera_description.wDynResDESC-1)/8) + 1;
     LOG4CXX_INFO(logger_, "Camera descriptor reports dynamic resolution: " <<
@@ -339,12 +329,9 @@ void PcoCameraLinkController::connect(void)
     // Read the camera information string o get the camera name
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Getting camera information string");
     pco_error = camera_->PCO_GetInfo(1, camera_infostr, sizeof(camera_infostr));
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to camera info", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to camera info with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
 
     // Populate the camera status container with the appropriate information
@@ -362,12 +349,9 @@ void PcoCameraLinkController::connect(void)
     pco_error = camera_->PCO_GetDelayExposure(
         &(camera_delay_exp_.delay_time_), &(camera_delay_exp_.exposure_time_)
     );
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to get delay and exposure times", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to get delay and exposure times with error code 0x"
-             << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
 
     // Read the camera delay and exposure timebase settings
@@ -375,12 +359,9 @@ void PcoCameraLinkController::connect(void)
     pco_error = camera_->PCO_GetTimebase(
         &(camera_delay_exp_.delay_timebase_), &(camera_delay_exp_.exposure_timebase_)
     );
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to get delay and exposure timebase", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to get delay and exposure timebase with error code 0x"
-             << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
 
     // Update the camera exposure and frame rate in the configuration container accordingly
@@ -393,6 +374,7 @@ void PcoCameraLinkController::connect(void)
         << " frame rate: " << camera_config_.frame_rate_ << "Hz"
     );
 
+    return true;
 }
 
 //! Arms the camera, preparing for recording
@@ -400,32 +382,30 @@ void PcoCameraLinkController::connect(void)
 //! This method arms the PCO camera and is invoked by the camera state machine on receipt of the
 //! appropriate command. Arming is necessary to commit new settings to the camera for image
 //! recording.
+//!
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::arm(void)
+bool PcoCameraLinkController::arm(void)
 {
     DWORD pco_error;
 
     // Arm the camera
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Arming camera");
     pco_error = camera_->PCO_ArmCamera();
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to arm camera", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to arm camera with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
 
     // Post-arm the grabber
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Post-arming grabber");
     pco_error = grabber_->PostArm();
-    if (pco_error != PCO_NOERROR)
+    if (!check_pco_error("Failed to post-arm grabber", pco_error))
     {
-        LOG4CXX_ERROR(logger_, "Failed to post-arm grabber with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
+        return false;
     }
+
+    return true;
 }
 
 //! Disarms the camera
@@ -433,18 +413,23 @@ void PcoCameraLinkController::arm(void)
 //! This method diarms the PCO camera and is invoked by the camera state machine on receipt of the
 //! appropriate command. Disarming the camera is a logic-only operation within the
 //! state machine - no camera operations are necessary.
+//!
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::disarm(void)
+bool PcoCameraLinkController::disarm(void)
 {
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Disarming camera");
+    return true;
 }
 
 //! Starts the camera recording, allowing images to be acquired.
 //!
 //! This method sets the camera recording state to true, allowing images to be acquired, and is
 //! invoked by the camera state machine on receipt of the appropriate command.
+//!
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::start_recording(void)
+bool PcoCameraLinkController::start_recording(void)
 {
     DWORD pco_error;
     DWORD exp_time, delay_time;
@@ -452,25 +437,23 @@ void PcoCameraLinkController::start_recording(void)
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to running");
 
     pco_error = camera_->PCO_SetRecordingState(1);
-    if (pco_error != PCO_NOERROR)
-    {
-        LOG4CXX_ERROR(logger_, "Failed to set camera recoding state to running with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
+    camera_recording_ =
+        check_pco_error("Failed to set camera recoding state to running", pco_error);
 
-    camera_recording_ = true;
+    return camera_recording_;
 }
 
 //! Stops the camera recording.
 //!
 //! This method sets the camera recording state to false, stopping images acquisition, and is
 //! invoked by the camera state machine on receipt of the appropriate command.
+//!
+//! \return boolean flag indicating success
 
-void PcoCameraLinkController::stop_recording(void)
+bool PcoCameraLinkController::stop_recording(void)
 {
     DWORD pco_error;
+    bool recording_stopped = true;
 
     // Set the camera recording flag to false so that the service thread acquisition loop
     // exits acquisition. Wait for the acquisition of the last image to complete
@@ -495,20 +478,18 @@ void PcoCameraLinkController::stop_recording(void)
         }
         else
         {
-            LOG4CXX_ERROR(logger_, "Image acquisition completion timed out after "
-                << max_retries << " retries.");
+            std::stringstream ss;
+            ss << "Image acquisition completion timed out after " << max_retries << " retries.";
+            recording_stopped &= check_pco_error(ss.str());
         }
     }
 
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to stopped");
     pco_error = camera_->PCO_SetRecordingState(0);
-    if (pco_error != PCO_NOERROR)
-    {
-        LOG4CXX_ERROR(logger_, "Failed to set camera recoding state to stopped with error code 0x"
-            << std::hex << pco_error << std::dec);
-        this->disconnect();
-        return;
-    }
+    recording_stopped &=
+        check_pco_error("Failed to set camera recoding state to stopped", pco_error);
+
+    return recording_stopped;
 }
 
 //! Runs the camera control loop service
@@ -546,25 +527,23 @@ void PcoCameraLinkController::run_camera_service(void)
 
                 // Start acquisition on the grabber
                 pco_error = grabber_->Start_Acquire();
-                if (pco_error != PCO_NOERROR)
+                if (check_pco_error("Failed to start frame grabber acquisition", pco_error))
                 {
-                    LOG4CXX_ERROR(logger_, "Failed to start frame grabber acquisition error code 0x"
-                        << std::hex << pco_error << std::dec);
-                }
+                    std::stringstream ss;
+                    if (camera_config_.num_frames_)
+                    {
+                        ss << camera_config_.num_frames_;
+                    }
+                    else
+                    {
+                        ss << "unlimited";
+                    }
 
-                std::stringstream ss;
-                if (camera_config_.num_frames_)
-                {
-                    ss << camera_config_.num_frames_;
+                    LOG4CXX_DEBUG_LEVEL(1, logger_,
+                        "Camera controller now acquiring " << ss.str() << " frames");
+                    camera_status_.acquiring_ = true;
+                    camera_status_.frames_acquired_ = 0;
                 }
-                else
-                {
-                    ss << "unlimited";
-                }
-                LOG4CXX_DEBUG_LEVEL(1, logger_,
-                    "Camera controller now acquiring " << ss.str() << " frames");
-                camera_status_.acquiring_ = true;
-                camera_status_.frames_acquired_ = 0;
             }
 
             // Request an empty buffer from the decoder and acquire an image into it
@@ -612,16 +591,13 @@ void PcoCameraLinkController::run_camera_service(void)
                 (camera_status_.frames_acquired_ >= camera_config_.num_frames_))
             {
                 pco_error = grabber_->Stop_Acquire();
-                if (pco_error != PCO_NOERROR)
+                if (check_pco_error("Failed to stop frame grabber acquisition", pco_error))
                 {
-                    LOG4CXX_ERROR(logger_,
-                        "Failed to stop frame grabber acquisition with error code 0x"
-                        << std::hex << pco_error << std::dec);
+                    LOG4CXX_INFO(logger_,
+                        "Camera controller completed acquisition of "
+                        << camera_status_.frames_acquired_ << " frames"
+                    );
                 }
-                LOG4CXX_INFO(logger_,
-                    "Camera controller completed acquisition of "
-                    << camera_status_.frames_acquired_ << " frames"
-                );
                 camera_status_.acquiring_ = false;
                 camera_state_.execute_command(PcoCameraState::CommandType::CommandStopRecording);
             }
@@ -633,14 +609,11 @@ void PcoCameraLinkController::run_camera_service(void)
             if (camera_status_.acquiring_)
             {
                 pco_error = grabber_->Stop_Acquire();
-                if (pco_error != PCO_NOERROR)
+                if (check_pco_error("Failed to stop frame grabber acquisition", pco_error))
                 {
-                    LOG4CXX_ERROR(logger_,
-                        "Failed to stop frame grabber acquisition with error code 0x"
-                        << std::hex << pco_error << std::dec);
+                    LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller finished acquiring after "
+                        << camera_status_.frames_acquired_ << " frames");
                 }
-                LOG4CXX_DEBUG_LEVEL(1, logger_, "Camera controller finished acquiring after "
-                    << camera_status_.frames_acquired_ << " frames");
                 camera_status_.acquiring_ = false;
             }
             usleep(1000);
@@ -721,21 +694,17 @@ bool PcoCameraLinkController::acquire_image(void* image_buffer, int timeout)
     bool acquire_ok = true;
     DWORD pco_error;
 
-        //pco_error = grabber_->Acquire_Image(reinterpret_cast<WORD*>(image_buffer));
+    pco_error = grabber_->Wait_For_Next_Image(reinterpret_cast<WORD*>(image_buffer), timeout);
+    acquire_ok = check_pco_error("Failed to acquire an image", pco_error);
 
-        pco_error = grabber_->Wait_For_Next_Image(reinterpret_cast<WORD*>(image_buffer), timeout);
+    if (acquire_ok)
+    {
+        int image_num = this->image_nr_from_timestamp(image_buffer, 0);
+        LOG4CXX_DEBUG_LEVEL(
+            2, logger_, "Image acquisition completed OK with image number: " << image_num
+        );
+    }
 
-        if (pco_error != PCO_NOERROR)
-        {
-            LOG4CXX_ERROR(logger_, "Failed to acquire an image with error code 0x"
-                << std::hex << pco_error << std::dec);
-            acquire_ok = false;
-        }
-        else
-        {
-            int image_num = this->image_nr_from_timestamp(image_buffer, 0);
-            LOG4CXX_INFO(logger_, "Image acquisition completed OK with image number: " << image_num);
-        }
     return acquire_ok;
 }
 
@@ -760,6 +729,45 @@ int PcoCameraLinkController::image_nr_from_timestamp(void *image_buffer, int shi
         pixel_ptr++;
     }
     return image_num;
+}
+
+//! Checks camera error codes, setting camera error status and emitting error messages
+//!
+//! This method checks camera error codes, setting the error fields in the camera status parameter
+//! container and emitting error messages. If the error is associated with a PCO error code, append
+//! the matching error text and code to the message. Returns true if the error code indicates no
+//! error, false otherwise, allowing the calling code to act acoordingly.
+//!
+//! \param message - error message string
+//! \param pco_error - PCO error code, defaults to default_pco_error if no code associated
+//! \return true if error code indicates no error, false otherwise
+
+bool PcoCameraLinkController::check_pco_error(const std::string message, DWORD pco_error)
+{
+    // If no error occurred, return true
+    if (pco_error == PCO_NOERROR)
+    {
+        return true;
+    }
+    // Assemble the error message, appending the matching PCO error text and code if provided
+    std::stringstream error_message;
+    error_message << message;
+
+    if (pco_error != default_pco_error)
+    {
+        error_message << " : " << pco_error_text(pco_error) << " (error code 0x"
+            << std::hex << pco_error << std::dec << ")";
+    }
+
+    // Set the error fields in the status parameter container
+    camera_status_.error_code_ = static_cast<unsigned long>(pco_error);
+    camera_status_.error_message_ = error_message.str();
+
+    // Emit an error log message
+    LOG4CXX_ERROR(logger_, camera_status_.error_message_);
+
+    // Return false as an error occurred
+    return false;
 }
 
 //! Returns a readable error string for a camera error code.

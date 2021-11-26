@@ -82,13 +82,15 @@ namespace FrameReceiver
     struct EventArm : sc::event<EventArm> {};                 //!< Camera arm event
     struct EventDisarm : sc::event<EventDisarm> {};           //!< Camera disarm event
     struct EventRecordStart : sc::event<EventRecordStart> {}; //!< Camera recording start event
-    struct EventRecordStop : sc::event<EventRecordStop> {} ;  //!< Camera recording stop event
+    struct EventRecordStop : sc::event<EventRecordStop> {};   //!< Camera recording stop event
+    struct EventReset : sc::event<EventReset> {};             //!< Camera reset event
 
     //! Forward declaration of states
     struct Disconnected;
     struct Connected;
     struct Armed;
     struct Recording;
+    struct Error;
 
     // Forward declaration of the controller class
     class PcoCameraLinkController;
@@ -99,13 +101,14 @@ namespace FrameReceiver
         //! State transition command type enumeration
         enum CommandType
         {
-            CommandUnknown = -1,   //!< Unknown event
-            CommandConnect,        //!< Connect event
-            CommandDisconnect,     //!< Disconnect event
-            CommandArm,            //!< Arm event
-            CommandDisarm,         //!< Disarm event
-            CommandStartRecording, //!< Start recording event
-            CommandStopRecording   //!< Stop recording event
+            CommandUnknown = -1,   //!< Unknown command
+            CommandConnect,        //!< Connect command
+            CommandDisconnect,     //!< Disconnect command
+            CommandArm,            //!< Arm command
+            CommandDisarm,         //!< Disarm command
+            CommandStartRecording, //!< Start recording command
+            CommandStopRecording,  //!< Stop recording command
+            CommandReset           //!< Reset command
         };
 
         //! State type enumeration
@@ -115,7 +118,8 @@ namespace FrameReceiver
             StateDisconnected,  //!< Disconnected state
             StateConnected,     //!< Connected state
             StateArmed,         //!< Armed state
-            StateRecording      //!< Recording state
+            StateRecording,     //!< Recording state
+            StateError          //!< Error state
         };
 
         //! Command type map type definition
@@ -296,6 +300,34 @@ namespace FrameReceiver
             PcoCameraState::StateType state_type(void) const
             {
                 return PcoCameraState::StateType::StateRecording;
+            }
+    };
+
+    //! Error - error state class
+    //!
+    //! The error state is occupried when the controller signals that a state transition command
+    //! or other camera operation has failed.
+    //!
+    //! The following state transition events are supported:
+    //!
+    //!    error -> disconnected
+
+    struct Error : IStateInfo, sc::state<Error, PcoCameraState>
+    {
+        public:
+            //! Defines reactions to legal events
+            typedef sc::custom_reaction<EventReset> reactions;
+
+            //! Constructor - initialises state machine context
+            Error(my_context ctx) : my_base(ctx) {};
+
+            //! Reacts to reset transition events
+            sc::result react(const EventReset&);
+
+            //! Returns the current state type
+            PcoCameraState::StateType state_type(void) const
+            {
+                return PcoCameraState::StateType::StateError;
             }
     };
 }
