@@ -149,8 +149,12 @@ class CameraController():
 
         :param params: dictionary of parameters to add to the IPC channel message.
         """
-        reply = self._send_cmd("configure", params)
-        self.logger.info(f"Configuration response: \n{self.format_json(reply)}")
+        response = self._send_cmd("configure", params)
+        if repsonse:
+            self.logger.info(f"Configuration response: \n{self.format_json(response)}")
+        else:
+            self.logger.error("Timeout waiting for response to configuration set request")
+
 
     def _request_config(self):
         """Get the configuration of the PCO camera controller.
@@ -158,8 +162,11 @@ class CameraController():
         This interal method sends a configuration request command to the PCO camera controller and
         displays the response as formatted JSON.
         """
-        reply = self._send_cmd("request_configuration")
-        self.logger.info(f"Config request response: \n{self.format_json(reply)}")
+        response = self._send_cmd("request_configuration")
+        if response:
+            self.logger.info(f"Config request response: \n{self.format_json(response)}")
+        else:
+            self.logger.error("Timeout waiting for response to configuration get request")
 
     def get_status(self):
         """Get the status of the PCO camera controller.
@@ -167,8 +174,11 @@ class CameraController():
         This method send a status request command to the PCO camera controller and displays
         the response as formatted JSON.
         """
-        reply = self._send_cmd("status")
-        self.logger.info(f"Status response: \n{self.format_json(reply)}")
+        response = self._send_cmd("status")
+        if response:
+            self.logger.info(f"Status response: \n{self.format_json(response)}")
+        else:
+            self.logger.error("Timeout waiting for response to status request")
 
     def _send_cmd(self, cmd, params=None):
         """Send an IPC command message to the PCO camera controller.
@@ -184,12 +194,13 @@ class CameraController():
 
         self.ctrl_channel.send(cmd_msg.encode())
 
-        reply = None
+        response = None
         pollevts = self.ctrl_channel.poll(self._timeout_ms)
         if pollevts == IpcChannel.POLLIN:
-            reply = self.ctrl_channel.recv()
+            response_msg = self.ctrl_channel.recv()
+            response = IpcMessage(from_str=response_msg)
 
-        return IpcMessage(from_str=reply)
+        return response
 
     def format_json(self, msg):
         """Format JSON data for display.
