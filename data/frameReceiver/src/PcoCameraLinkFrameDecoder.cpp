@@ -262,8 +262,7 @@ void PcoCameraLinkFrameDecoder::handle_ctrl_channel(void)
   if (!request_ok) {
     LOG4CXX_ERROR(logger_, "Error handling camera control channel request from client "
                   << client_identity << ": " << error_ss.str());
-    ctrl_reply.set_msg_type(IpcMessage::MsgTypeNack);
-    ctrl_reply.set_param<std::string>("error", error_ss.str());
+    ctrl_reply.set_nack(error_ss.str());
   }
 
   // Send the encoded response back to the client
@@ -295,7 +294,10 @@ void PcoCameraLinkFrameDecoder::configure(
     {
       ParamContainer::Document config_params;
       config_msg.encode_params(config_params, CAMERA_CONFIG_PATH);
-      controller_->update_configuration(config_params);
+      if (!controller_->update_configuration(config_params))
+      {
+        config_reply.set_nack("Camera configuration udpate failed");
+      }
     }
 
     // If the configuration message has a command parameter, extract the command value and pass
@@ -304,13 +306,16 @@ void PcoCameraLinkFrameDecoder::configure(
     {
       std::string command = config_msg.get_param<std::string>(CAMERA_COMMAND_PATH);
       LOG4CXX_DEBUG_LEVEL(2, logger_, "Config request has command: " << command);
-      controller_->execute_command(command);
+      if (!controller_->execute_command(command))
+      {
+        config_reply.set_nack("Camera " + command + " command failed");
+      };
     }
   }
   else
   {
     LOG4CXX_ERROR(logger_, "Cannot configure camera: controller not initialised");
-    config_reply.set_param("error", std::string("camera controller not initialised"));
+    config_reply.set_nack("camera controller not initialised");
   }
 }
 

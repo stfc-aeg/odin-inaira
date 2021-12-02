@@ -103,8 +103,10 @@ PcoCameraLinkController::~PcoCameraLinkController()
 //!
 //! \param command - string command name to execute
 
-void PcoCameraLinkController::execute_command(std::string& command)
+bool PcoCameraLinkController::execute_command(std::string& command)
 {
+    bool command_ok = true;
+
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Controller executing command " << command);
     try
     {
@@ -113,8 +115,11 @@ void PcoCameraLinkController::execute_command(std::string& command)
     catch (PcoCameraStateException& e)
     {
         LOG4CXX_ERROR(logger_, "Failed to execute " << command << " command: " << e.what());
+        command_ok = false;
     }
     LOG4CXX_INFO(logger_, "Camera state is now: " << camera_state_.current_state_name());
+
+    return command_ok;
 }
 
 //! Updates the configuration of the camera from a parameter document
@@ -126,8 +131,10 @@ void PcoCameraLinkController::execute_command(std::string& command)
 //!
 //! \param params - JSON parameter document to update configuration from
 
-void PcoCameraLinkController::update_configuration(ParamContainer::Document& params)
+bool PcoCameraLinkController::update_configuration(ParamContainer::Document& params)
 {
+    bool update_ok = true;
+
     // Update the camera configuration with the specified parameters
     camera_config_.update(params);
 
@@ -145,26 +152,29 @@ void PcoCameraLinkController::update_configuration(ParamContainer::Document& par
         LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating camera delay and exposure settings");
 
         DWORD pco_error;
-        bool updated = true;
+        bool delay_exp_updated = true;
 
         // Set the delay and exposure timebases
         pco_error = camera_->PCO_SetTimebase(
             new_delay_exp.delay_timebase_, new_delay_exp.exposure_timebase_
         );
-        updated &= check_pco_error("Failed to set timebase", pco_error);
+        delay_exp_updated &= check_pco_error("Failed to set timebase", pco_error);
 
         // Set the delay and exposure times
         pco_error = camera_->PCO_SetDelayExposure(
             new_delay_exp.delay_time_, new_delay_exp.exposure_time_
         );
-        updated &= check_pco_error("Failed to set camera delay and exposure", pco_error);
+        delay_exp_updated &= check_pco_error("Failed to set camera delay and exposure", pco_error);
 
-        if (updated)
+        if (delay_exp_updated)
         {
             camera_delay_exp_ = new_delay_exp;
         }
+        update_ok &= delay_exp_updated;
     }
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
+
+    return update_ok;
 }
 
 //! Gets the current configuration of the camera.

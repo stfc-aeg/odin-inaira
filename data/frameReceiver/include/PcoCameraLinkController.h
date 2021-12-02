@@ -58,10 +58,10 @@ namespace FrameReceiver
     std::size_t get_image_size(void);
 
     //! Executes a camera control command
-    void execute_command(std::string& command);
+    bool execute_command(std::string& command);
 
     //! Updates the configuration of the camera from a parameter document
-    void update_configuration(ParamContainer::Document& params);
+    bool update_configuration(ParamContainer::Document& params);
 
     //! Gets the current configuration of the camera encoded into a parameter document
     void get_configuration(ParamContainer::Document& params, const std::string param_prefix);
