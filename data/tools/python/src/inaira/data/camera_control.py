@@ -150,7 +150,7 @@ class CameraController():
         :param params: dictionary of parameters to add to the IPC channel message.
         """
         response = self._send_cmd("configure", params)
-        if repsonse:
+        if response:
             self.logger.info(f"Configuration response: \n{self.format_json(response)}")
         else:
             self.logger.error("Timeout waiting for response to configuration set request")
