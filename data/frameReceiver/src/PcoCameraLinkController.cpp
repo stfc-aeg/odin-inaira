@@ -374,6 +374,22 @@ bool PcoCameraLinkController::connect(void)
         << " frame rate: " << camera_config_.frame_rate_ << "Hz"
     );
 
+    // Check if the camera has been left in a recording state and stop if necssary
+    WORD recording_state;
+    pco_error = camera_->PCO_GetRecordingState(&recording_state);
+    if (!check_pco_error("Failed to get current recording state", pco_error))
+    {
+        return false;
+    }
+    if (recording_state == recording_state_running)
+    {
+        LOG4CXX_INFO(logger_, "Camera recording state is running, setting to stopped");
+        pco_error = camera_->PCO_SetRecordingState(recording_state_stopped);
+        if (!check_pco_error("Failed to set recording state to stopped", pco_error))
+        {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -436,7 +452,7 @@ bool PcoCameraLinkController::start_recording(void)
 
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to running");
 
-    pco_error = camera_->PCO_SetRecordingState(1);
+    pco_error = camera_->PCO_SetRecordingState(recording_state_running);
     camera_recording_ =
         check_pco_error("Failed to set camera recoding state to running", pco_error);
 
@@ -485,7 +501,7 @@ bool PcoCameraLinkController::stop_recording(void)
     }
 
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to stopped");
-    pco_error = camera_->PCO_SetRecordingState(0);
+    pco_error = camera_->PCO_SetRecordingState(recording_state_stopped);
     recording_stopped &=
         check_pco_error("Failed to set camera recoding state to stopped", pco_error);
 

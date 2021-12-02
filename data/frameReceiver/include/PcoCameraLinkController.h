@@ -33,7 +33,8 @@ namespace FrameReceiver
   class PcoCameraLinkFrameDecoder; // Forward declaration of the decoder class
 
   const DWORD default_pco_error = -1;
-
+  const WORD recording_state_stopped = 0;
+  const WORD recording_state_running = 1;
   class PcoCameraLinkController
   {
   public:
