@@ -33,6 +33,7 @@ namespace FrameReceiver
 
             PcoCameraStatus() :
                 camera_state_name_("unknown"),
+                rearm_required_(false),
                 acquiring_(false),
                 frames_acquired_(0),
                 error_code_(error_code_none),
@@ -43,6 +44,7 @@ namespace FrameReceiver
             {
                 // Bind overall state parameters
                 bind_param<std::string>(camera_state_name_, "camera/state");
+                bind_param<bool>(rearm_required_, "camera/rearm_required");
                 bind_param<bool>(acquiring_, "acquisition/acquiring");
                 bind_param<unsigned long>(frames_acquired_, "acquisition/frames_acquired");
 
@@ -69,6 +71,7 @@ namespace FrameReceiver
 
         private:
             std::string camera_state_name_;  //!< Name of the current camera state
+            bool rearm_required_;            //!< Indicates re-arm required due to config change
             bool acquiring_;                 //!< Flag if camera currently acquiring frames
             unsigned long frames_acquired_;  //!< Number of frames acquired in current acqusition
 

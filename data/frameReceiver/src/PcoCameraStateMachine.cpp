@@ -32,6 +32,7 @@ PcoCameraState::PcoCameraState(PcoCameraLinkController* controller) :
     EventConnect::custom_static_type_ptr("connect");
     EventArm::custom_static_type_ptr("arm");
     EventDisarm::custom_static_type_ptr("disarm");
+    EventRearm::custom_static_type_ptr("rearm");
     EventRecordStart::custom_static_type_ptr("start");
     EventRecordStop::custom_static_type_ptr("stop");
     EventReset::custom_static_type_ptr("reset");
@@ -102,6 +103,9 @@ void PcoCameraState::execute_command(PcoCameraState::CommandType command)
             break;
         case CommandDisarm:
             process_event(EventDisarm());
+            break;
+        case CommandRearm:
+            process_event(EventRearm());
             break;
         case CommandStartRecording:
             process_event(EventRecordStart());
@@ -232,6 +236,7 @@ void PcoCameraState::init_command_type_map(void)
     command_type_map_.insert(CommandTypeMapEntry("disconnect", CommandDisconnect));
     command_type_map_.insert(CommandTypeMapEntry("arm",        CommandArm));
     command_type_map_.insert(CommandTypeMapEntry("disarm",     CommandDisarm));
+    command_type_map_.insert(CommandTypeMapEntry("rearm",      CommandRearm));
     command_type_map_.insert(CommandTypeMapEntry("start",      CommandStartRecording));
     command_type_map_.insert(CommandTypeMapEntry("stop",       CommandStopRecording));
     command_type_map_.insert(CommandTypeMapEntry("reset",      CommandReset));
@@ -323,6 +328,26 @@ sc::result Armed::react(const EventDisarm&)
     if (outermost_context().controller_->disarm())
     {
         return transit<Connected>();
+    }
+    else
+    {
+        return transit<Error>();
+    }
+}
+
+//! Reacts to rearm transition events
+//!
+//! This method reacts to rearm transition events in the armed state. The controller arm method
+//! is called and the state remains armed. If the rearm call fails the state transits to
+//! error.
+//!
+//! \param reference to rearm event
+
+sc::result Armed::react(const EventRearm&)
+{
+    if (outermost_context().controller_->arm())
+    {
+        return discard_event();
     }
     else
     {

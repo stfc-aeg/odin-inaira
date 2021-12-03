@@ -81,6 +81,7 @@ namespace FrameReceiver
     struct EventDisconnect : sc::event<EventDisconnect> {};   //!< Camera disconnect event
     struct EventArm : sc::event<EventArm> {};                 //!< Camera arm event
     struct EventDisarm : sc::event<EventDisarm> {};           //!< Camera disarm event
+    struct EventRearm : sc::event<EventRearm> {};             //!< Camera rearm event
     struct EventRecordStart : sc::event<EventRecordStart> {}; //!< Camera recording start event
     struct EventRecordStop : sc::event<EventRecordStop> {};   //!< Camera recording stop event
     struct EventReset : sc::event<EventReset> {};             //!< Camera reset event
@@ -106,6 +107,7 @@ namespace FrameReceiver
             CommandDisconnect,     //!< Disconnect command
             CommandArm,            //!< Arm command
             CommandDisarm,         //!< Disarm command
+            CommandRearm,          //!< Rearm command
             CommandStartRecording, //!< Start recording command
             CommandStopRecording,  //!< Stop recording command
             CommandReset           //!< Reset command
@@ -257,6 +259,7 @@ namespace FrameReceiver
            //! Defines reactions to legal events
            typedef mpl::list<
                 sc::custom_reaction<EventDisarm>,
+                sc::custom_reaction<EventRearm>,
                 sc::custom_reaction<EventRecordStart>
             > reactions;
 
@@ -265,6 +268,8 @@ namespace FrameReceiver
 
             //! Reacts to disarm transition events
             sc::result react(const EventDisarm&);
+            //! Reacts to rearm transition events
+            sc::result react(const EventRearm&);
             //! Reacts to record start transition events
             sc::result react(const EventRecordStart&);
 

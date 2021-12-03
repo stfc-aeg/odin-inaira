@@ -313,6 +313,15 @@ def disarm(ctx):
 
 @cli.command()
 @click.pass_context
+def rearm(ctx):
+    """Rearm the PCO camera.\f
+
+    :param ctx: command execution context
+    """
+    ctx.obj["controller"].do_command("rearm")
+
+@cli.command()
+@click.pass_context
 def start(ctx):
     """Start frame acquisition on the PCO camera.\f
 

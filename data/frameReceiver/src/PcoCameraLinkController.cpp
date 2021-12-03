@@ -154,6 +154,14 @@ bool PcoCameraLinkController::update_configuration(ParamContainer::Document& par
         DWORD pco_error;
         bool delay_exp_updated = true;
 
+        // Flag that a re-arm is required if the camera is not currently recording, otherwise
+        // subsequent record starts will fail. The camera accepts changes to delay and exposure
+        // parameters during recording to allow them to be modified on the fly.
+        if (!camera_recording_)
+        {
+            camera_status_.rearm_required_ = true;
+        }
+
         // Set the delay and exposure timebases
         pco_error = camera_->PCO_SetTimebase(
             new_delay_exp.delay_timebase_, new_delay_exp.exposure_timebase_
@@ -415,6 +423,9 @@ bool PcoCameraLinkController::arm(void)
 {
     DWORD pco_error;
 
+    // Reset the rearm required flag
+    camera_status_.rearm_required_ = false;
+
     // Arm the camera
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Arming camera");
     pco_error = camera_->PCO_ArmCamera();
@@ -459,6 +470,16 @@ bool PcoCameraLinkController::start_recording(void)
 {
     DWORD pco_error;
     DWORD exp_time, delay_time;
+
+    // If the camera configuration has changed and a rearm is required, do so automatically
+    if (camera_status_.rearm_required_)
+    {
+        LOG4CXX_INFO(logger_, "Camera configuration has changed, re-arming");
+        if (!this->arm())
+        {
+            return false;
+        }
+    }
 
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting camera recording state to running");
 
