@@ -64,7 +64,9 @@
     },
     {
         "liveview": {
-            "live_view_socket_addr":"tcp://127.0.0.1:5020"
+            "frame_frequency": 0,
+            "per_second": 1,
+            "live_view_socket_addr":"tcp://*:5020"
         }
     },
     {
