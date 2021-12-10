@@ -134,6 +134,9 @@ bool PcoCameraLinkController::execute_command(std::string& command)
 bool PcoCameraLinkController::update_configuration(ParamContainer::Document& params)
 {
     bool update_ok = true;
+    DWORD pco_error;
+
+    unsigned int current_timestamp_mode = camera_config_.timestamp_mode_;
 
     // Update the camera configuration with the specified parameters
     camera_config_.update(params);
@@ -151,7 +154,6 @@ bool PcoCameraLinkController::update_configuration(ParamContainer::Document& par
     {
         LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating camera delay and exposure settings");
 
-        DWORD pco_error;
         bool delay_exp_updated = true;
 
         // Flag that a re-arm is required if the camera is not currently recording, otherwise
@@ -180,6 +182,17 @@ bool PcoCameraLinkController::update_configuration(ParamContainer::Document& par
         }
         update_ok &= delay_exp_updated;
     }
+
+    if (camera_config_.timestamp_mode_ != current_timestamp_mode)
+    {
+        LOG4CXX_DEBUG_LEVEL(2, logger_,
+            "Updating camera timestamp mode to " << camera_config_.timestamp_mode_);
+        WORD timestamp_mode = static_cast<WORD>(camera_config_.timestamp_mode_);
+
+        pco_error = camera_->PCO_SetTimestampMode(timestamp_mode);
+        update_ok &= check_pco_error("Failed to set camera timestamp mode", pco_error);
+    }
+
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
 
     return update_ok;
@@ -391,6 +404,17 @@ bool PcoCameraLinkController::connect(void)
         << " delay time: " << camera_delay_exp_.delay_time_ << camera_delay_exp_.delay_timebase_unit()
         << " frame rate: " << camera_config_.frame_rate_ << "Hz"
     );
+
+    // Update the timestamp mode settings
+    LOG4CXX_DEBUG_LEVEL(2, logger_, "Getting timestamp mode setting");
+    WORD timestamp_mode;
+    pco_error = camera_->PCO_GetTimestampMode(&timestamp_mode);
+    if (!check_pco_error("Failed to get timestamp mode", pco_error))
+    {
+        return false;
+    }
+    LOG4CXX_INFO(logger_, "Camera reports timestamp mode is " << timestamp_mode);
+    camera_config_.timestamp_mode_ = timestamp_mode;
 
     // Check if the camera has been left in a recording state and stop if necssary
     WORD recording_state;
