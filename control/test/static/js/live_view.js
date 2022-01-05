@@ -225,7 +225,7 @@ var LiveViewApp = (function()
         {
             updateClipRange(response.data_min_max, !clip_enable);
         });
-        update_frame_data();
+        // update_frame_data();
     };
 
     var resizeImage = function()

@@ -5,30 +5,24 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <   title>Overview | ODIN INAIRA</title>
+        <title>Overview | ODIN INAIRA</title>
 
         <!-- Bootstrap -->
         <link href="js/bootstrap-3.3.6-dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="js/bootstrap-3.3.6-dist/css/bootstrap-switch.min.css" rel="stylesheet">
+        <link href="js/bootstrap-slider-10.2.1/css/bootstrap-slider.css" rel="stylesheet">
+
+        <!-- CSS -->
         <link href="css/odin-server.css" rel="stylesheet">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
+
     </head>
+
     <body>
-
-        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-        <script src="js/jquery-2.2.3.min.js"></script>
-        <!-- Include all compiled plugins (below), or include individual files as needed -->
-        <script src="js/bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
-        <script src="js/bootstrap-3.3.6-dist/js/bootstrap-switch.min.js"></script>
-        <script src="js/bootstrap-slider-10.2.1/js/bootstrap-slider.min.js"></script>
-        <script src="js/odin_server.js"></script>
-        <script src='js/live_view.js'></script>
-        
-
-
         <nav class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
             <div class="navbar-header">
@@ -57,65 +51,131 @@
                     </div>
 <!-- 
 Add: 
-    - All config for camera
-    - Get config and replace anything in boxes with it when requested
-
     - Status display
         - Find a way to display an empty parameter tree??
 -->
-                    <div name="Camera Control">
+
+<!-- 
+    - Config on the left
+    - Status on the right
+    - Don't display values until they are available?
+    - Buttongs with COLOUR
+    - Look at text style/colour
+    - Look at Mercury/Hexitech detector control UIs
+
+    - UI needs to ONLY send changed values
+
+-->
+
+
+<!-- Camera Control -->
+                    <div class="well row" name="Camera Control"> 
                         <div class="row">
-                            <h2> Camera Controls </h2>
-                        </div>
-                        <div class="row well" name="state_machine"> <!-- State Displat and State Switcher-->
-                            <section class="column screen-half">
-                                <button type="button" id="stateUp" onclick='change_state("up")'></button>
-                                <button type="button" id="stateDown" onclick='change_state("down")'></button>
-                            </section>
-                            <section class="column screen-half">
-                                <label name="stateName"> This will display the state name</label>
+                            <section class="column screen-full">
+                                <h1> Camera Controls </h1>
                             </section>
                         </div>
-                        <div class="well">
-                            <div class ="row"><!-- Camera config input -->
-                                <section class="column screen-third">
-                                    <label> Frame Rate </label>
-                                    <input type="number" id="frame_rate">
+                        <section class="column screen-full">
+                            <div class="row" name="camera_controls">
+                                <section class="column screen-full">
+                                    <div class="row">
+                                        <section class="column screen-half"> 
+                                            <h2> Camera Control </h2>
+                                            <button class="btn btn-primary" type="button" id="stateUp" onclick='change_state("up")'></button>
+                                            <button class="btn btn-primary" type="button" id="stateDown" onclick='change_state("down")'></button>
+                                        </section>
+                                        <section class="column screen-half">
+                                            <div class="row">
+                                                <h2> Status </h2>
+                                            </div>
+                                            <div class="row">
+                                                <table class="equal-width">
+                                                    <colgroup>
+                                                        <col>
+                                                        <col>
+                                                    </colgroup>
+                                                    <tbody>
+                                                        <tr>
+                                                            <th> State </th>
+                                                            <td id="state"> </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th> Acquiring </th>
+                                                            <td id="acquiring"></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th> Frames Acquired </th>
+                                                            <td id="frames_acquired"> </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th> Connected </th>
+                                                            <td id="connected"> </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
+                                    
                                 </section>
-                                <section class="column screen-third">
-                                    <label> Exposure Time </label>
-                                    <input type="number" id="exposure_time">
-                                </section>
-                                <section class="column screen-third">
-                                    <label> Number of Frames </label>
-                                    <input type="number" id="num_frames">
-                                </section>
-                            </div> <!-- End of Row -->
-                            <div class ="row">
-                                <section class="column screen-third">
-                                    <label> Image Timeout </label>
-                                    <input type="number" id="image_timeout">
-                                </section>
-                                <section class="column screen-third">
-                                    <label> Camera Num </label>
-                                    <input type="number" id="camera_num">
-                                </section>
-                                <section class="column screen-third">
-                                    <button type="button" id="sendConfig" onclick="send_config()" class="">Send Config</button>
-                                    <button type="button" id="getConfig" onclick="get_config()" class="">Get Config</button>
-                                </section>
-                            </div> <!-- End of Row -->
+                            </div>
                             <div class="row">
                                 <section class="column screen-full">
-                                    <textarea id="status" readonly>
-
-                                    </textarea>
+                                    <section class="column screen-half">
+                                        <h2> Config </h2>
+                                        <button class="btn btn-primary" type="button" id="sendConfig" onclick="send_config()" class="">Send Config</button>
+                                        <button class="btn btn-primary" type="button" id="refreshConfig" onclick="refresh_config()" class="">Refresh Config</button>
+                                        <table class="equal-width">
+                                            <colgroup>
+                                                <col>
+                                                <col>
+                                            </colgroup>
+                                            <tbody>
+                                                <tr>
+                                                    <th> Frame Rate</th>
+                                                    <td> 
+                                                        <input type="number" id="frame_rate" onChange="config_input_changed(this.id)"> 
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th> Exposure Time</th>
+                                                    <td>
+                                                        <input type="number" id="exposure_time" onChange="config_input_changed(this.id)">
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th> Number of Frames </th>
+                                                    <td> 
+                                                        <input type="number" id="num_frames" onChange="config_input_changed(this.id)">
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th> Image Timeout </th>
+                                                    <td> 
+                                                        <input type="number" id="image_timeout" onChange="config_input_changed(this.id)"> 
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th> Camera Number </th>
+                                                    <td>
+                                                        <input type="number" id="camera_num" onChange="config_input_changed(this.id)">
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </section>
                                 </section>
-                                
-                            </div> <!-- End of Row -->
-                        </div>
-
+                            </div>
+                        </section>
                     </div>
+
+<!-- Experiment Data Control -->
+    <!-- Live View Controls -->
+    
+
+<!-- INAIRA Experiment Data -->
+    <!-- Experiment Data (Left)-->
+    <!-- Live View Image (Right) -->
 
                 <div class="row well"> <!-- Frame Data and Live View -->
                     <section class="column screen-half "><!-- Current Frame Data -->  
@@ -257,5 +317,13 @@ Add:
       </main>
       <footer>
       </footer>
+      <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+      <script src="js/jquery-2.2.3.min.js"></script>
+      <!-- Include all compiled plugins (below), or include individual files as needed -->
+      <script src="js/bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
+      <script src="js/bootstrap-3.3.6-dist/js/bootstrap-switch.min.js"></script>
+      <script src="js/bootstrap-slider-10.2.1/js/bootstrap-slider.min.js"></script>
+      <script src="js/odin_server.js"></script>
+      <script src='js/live_view.js'></script>
   </body>
 </html>

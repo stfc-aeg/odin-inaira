@@ -1,30 +1,95 @@
 api_version = '0.1';
+page_load = true;
+camera_config = {};
+camera_status = {};
+local_config = {};
+
+//#region On Page Ready
+
+/**
+ * Run this when the document is ready.
+ */
 
 $( document ).ready(function() {
 
-    update_api_version();
-    update_api_adapters();
-    update_state_buttons();
+    // First get the values from the adapter
     get_config();
-    update_status();
+    get_status();
+    
+    get_timer();
 });
 
-function update_api_version() {
+/**
+ * Continuous poll timer
+ */
 
-    $.getJSON('/api', function(response) {
-        $('#api-version').html(response.api);
-        api_version = response.api;
-    });
+ function get_timer() {
+    setTimeout(get_these, 2000);
 }
 
-function update_api_adapters() {
-
-    $.getJSON('/api/' + api_version + '/adapters/', function(response) {
-        adapter_list = response.adapters.join(", ");
-        $('#api-adapters').html(adapter_list);
-    });
+function get_these() {
+    get_config();
+    get_status();
+    get_timer();
 }
 
+//#endregion
+
+//#region Get Functions
+
+/**
+ * Get the camera config and set locally.
+ */
+function get_config(){
+    $.getJSON('/api/' + api_version + '/inaira/', function(response) {
+        adapter_camera_config = response.camera_control.config.camera;
+
+        camera_config = JSON.parse(JSON.stringify(return_evaluated_object(adapter_camera_config)));
+        
+        // This has to be done AFTER the camera_config has been updated.
+        // If this is the first time the page is loading. Create the change index for the config.
+        if(page_load){
+            // Create marker for changed inputs, with False to indicate no change.
+            Object.entries(camera_config).forEach(entry => {
+                const [key, value] = entry;
+                local_config[key] = JSON.parse('{"value":' + value + ', "changed": false}');
+            });
+            update_config();
+            page_load = false;
+        }
+    });
+    console.log("Got and updated config");
+}
+
+/**
+ * Get the camera status and set locally.
+ */
+
+function get_status(){
+    $.getJSON('/api/' + api_version + '/inaira/', function(response) {
+        adapter_camera_status = response.camera_control.status;
+
+        camera_status = JSON.parse(JSON.stringify(return_evaluated_object(adapter_camera_status)));
+        update_status();
+    }
+    );
+    console.log("Got and updated status");
+}
+
+/**
+ * Get the config values shown in the UI and set locally.
+ */
+function get_local_config_values(){
+    local_config.frame_rate.value = get_element_by_id("frame_rate").value;
+    local_config.exposure_time.value = get_element_by_id("exposure_time").value;
+    local_config.num_frames.value = get_element_by_id("num_frames").value;
+    local_config.image_timeout.value = get_element_by_id("image_timeout").value;
+    local_config.camera_num.value = get_element_by_id("camera_num").value;
+}
+
+/**
+ * Updates the frame data UI display for the current frame.
+ */
 function update_frame_data() {
 
     $.getJSON('/api/' + api_version + '/inaira/', function(response) {
@@ -43,16 +108,63 @@ function update_frame_data() {
     });
 }
 
-function change_state(a){
-    $.ajax({
-        type: "PUT",
-        url: '/api/' + api_version + '/inaira/status_change/',
-        contentType: "application/json",
-        data: '{"change" : "' + a + '"}'
+//#endregion
+
+//#region Display Update Functions
+
+/**
+ * 
+ * `update_config()`:
+ *      Updates the config UI display, checks if changes have been made or are being made and will not overwrite these.
+ * 
+ * `update_status():
+ *      Updates the status UI display whenever called.
+ * 
+ * `refresh_config():
+ *      Refreshes the config UI display to the camera_config values. In line with the adapter and camera.
+ */
+
+/**
+ * Update the camera Config display.
+ */
+ function update_config(){
+    Object.entries(local_config).forEach(entry => {
+        const [key, value] = entry;
+        // Is it currently being edited
+        if (!(get_focused_element() == key)){
+            // Is it changed?
+            if (!(value.changed)) {
+                get_element_by_id(key).value = value.value;
+            }
+        }
     });
-    update_state_buttons();
 }
 
+/** 
+ * Update the camera Status display.
+ */
+
+function update_status(){
+    Object.entries(camera_status).forEach(entry => {
+        const [key, value] = entry;
+        get_element_by_id(key).innerText = value;
+    });
+}
+
+/**
+ * Refresh the Config display to camera settings.
+ */
+function refresh_config(){
+    Object.entries(camera_config).forEach(entry => {
+        const [key, value] = entry;
+        get_element_by_id(key).value = value;       
+    });
+    console.log("Refreshed config to camera level");
+}
+
+/**
+ * Will update the state display buttons.
+ */
 function update_state_buttons(){
     $.getJSON('/api/' + api_version + '/inaira/', function(response){
         up_button = get_element_by_id("stateUp");
@@ -64,46 +176,164 @@ function update_state_buttons(){
     });
 }
 
-function get_config(){
-    $.getJSON('/api/' + api_version + '/inaira/', function(response){
-        camera_config = response.camera_control.config.camera
-        get_element_by_id("frame_rate").value = camera_config.frame_rate;
-        get_element_by_id("exposure_time").value = camera_config.exposure_time;
-        get_element_by_id("num_frames").value = camera_config.num_frames;
-        get_element_by_id("image_timeout").value = camera_config.image_timeout;
-        get_element_by_id("camera_num").value = camera_config.camera_num;
-    });
+//#endregion
+
+//#region Button functions that do not update the UI.
+
+/**
+ * Notify that a input has been changed.
+ */
+function config_input_changed(element_id){
+    // Change assosicate input change to true.
+    local_config[element_id]["changed"] = true;
+    local_config[element_id]["value"] = parseInt(get_element_by_id(element_id).value);
 }
 
+/**
+ * Sends all changed config to the adapter
+ */
 function send_config(){
     // Put config updates
-    $.ajax({
-        type: "PUT",
-        url: '/api/' + api_version + '/inaira/camera_control/config/camera/',
-        contentType: "application/json",
-        data: '{"frame_rate" : ' + parseInt(get_element_by_id("frame_rate").value) + ','
-                + '"exposure_time" : ' + get_element_by_id("exposure_time").value + ','
-                + '"num_frames" : ' + get_element_by_id("num_frames").value + ','
-                + '"image_timeout" : ' + get_element_by_id("image_timeout").value + ','
-                + '"camera_num" : ' + get_element_by_id("camera_num").value + '}'
+    config_data = {};
+    // Checks if the "changed" value is true on the local copy.
+
+    Object.entries(local_config).forEach(entry => {
+        const [key, value] = entry;
+        if (value.changed){
+            //Now compare with the original
+            if (!(value.value == camera_config[key])){
+                config_data[key] = value.value;
+            }
+        }
     });
-    
+
+    console.log(config_data);
+    console.log(JSON.stringify(config_data));
+
+    if (Object.keys(config_data).length > 0){
+        $.ajax({
+            type: "PUT",
+            url: '/api/' + api_version + '/inaira/camera_control/config/camera/',
+            contentType: "application/json",
+            data: JSON.stringify(config_data)
+        });
+    } else {
+        console.log("No changes were made. Not sending PUT request");
+    }
+
 }
 
+//#endregion
+
+//#region Functions called from within odin_server.js
+
+/**
+ * Get values from the document
+ */
 function get_element_by_id(element_id){
     return document.getElementById(element_id);
 }
 
-function update_status(){
-    $.getJSON('/api/' + api_version + '/inaira/camera_control/status/', function(response){
-        get_element_by_id("status").value = JSON.stringify(response)
-    });
-    update_status_timer();
+function get_focused_element(){
+    return document.activeElement;
+}
+/**
+ * Evaluate object for other objects. 
+ */
+
+function return_evaluated_object(object_to_evaluate){
+    return_value = {};
+    loop = true;
+    evaluate = object_to_evaluate;
+    while (loop) {
+        new_evaluation = {};
+        Object.entries(evaluate).forEach(entry => {
+            const [key, value] = entry;
+            // Not an Object
+            if (typeof value !== 'object'){
+                return_value[key] = value;
+                delete evaluate[key];
+            } 
+
+            // An Object
+            if (Object.keys(evaluate).length != 0 && Object.keys(value).length > 0) {
+                new_value = value;
+                Object.entries(new_value).forEach(new_entry => {
+                    const [new_key, new_value] = new_entry;
+                    new_evaluation[new_key] = new_value;
+                });
+            }
+        });
+
+        if (Object.keys(evaluate).length == 0){
+            loop = false;
+        }
+
+        evaluate = JSON.parse(JSON.stringify(new_evaluation));
+    }
+
+    return return_value;
 }
 
-function update_status_timer(){
-    setTimeout(update_status, 1000);
-}
+
+
+//#endregion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Random Stuff I need to figure out what it does.
+ */
 
 function change_enable() {
     var enabled = $('#task-enable').prop('checked');
@@ -115,3 +345,5 @@ function change_enable() {
         data: JSON.stringify({'enable': enabled})
     });
 }
+
+

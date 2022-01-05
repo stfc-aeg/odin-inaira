@@ -11,8 +11,10 @@ from .odin_inaira import OdinInaira, OdinInairaError
 from .camera_controller import CameraController
 
 # TODO 
-#   Test with recieving frames..
-#   Link to camera controller..
+#   Add clipping back into live view
+#   Improve status controls
+#   Imporve UI
+#   Probably someting else ngl
 
 class InairaControl():
     
@@ -89,7 +91,7 @@ class InairaControl():
             else:
                 command = "disarm"
                 up_text, down_text, up_enabled, down_enabled = "Start", "Disconnect", True, True
-        elif state == "running":
+        elif state == "recording":
             if state_change == "down":
                 command = "stop"
                 up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True

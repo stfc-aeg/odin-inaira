@@ -109,14 +109,11 @@ class CameraController():
         self.param_tree.set(path, data)
 
     def get_camera_state(self):
-        # logging.debug("GETTING CAMERA STATE")
+        
         reply = self._send_cmd("status")
-        # logging.debug("MESSAGE TYPE: {}".format(reply.get_msg_type()))
-        # logging.debug(reply.ACK)
-        # logging.debug(reply)
+
         try:
             self.connected = reply.get_msg_type() and reply.get_msg_type() in reply.ACK
-            # logging.debug("CONNECTED: {}".format(self.connected))
             self.state = reply.get_params().get("camera", "").get("state", "")
             self.acquiring = reply.get_params().get("acquisition", "").get("acquiring", "")
             self.frames_acquired = reply.get_params().get("acquisition", "").get("frames_acquired", "")
