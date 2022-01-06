@@ -46,7 +46,39 @@ namespace FrameReceiver
                 exposure_time_(0.0),
                 frame_rate_(0.0)
             {
-                // Bind parameters in the container
+                // Bind the parameters in the container
+                bind_params();
+            }
+
+            //! Copy constructor
+            //!
+            //! This constructor creates a copy of an existing configuration object. All parameters
+            //! are first bound and then the underlying parameter container is updated from the
+            //! existing object. This mechansim is necessary (rather than relying on a default copy
+            //! constructor) since it is not possible for a parameter container to automatically
+            //! rebind parameters defined in a derived class.
+            //!
+            //! \param config - existing config object to copy
+
+            PcoCameraConfiguration(const PcoCameraConfiguration& config) :
+                ParamContainer(config)
+            {
+                // Bind the parameters in the container
+                bind_params();
+
+                // Update the container from the existing config object
+                update(config);
+            }
+
+        private:
+
+            //! Bind parameters in the container
+            //!
+            //! This method binds all the parameters in the container to named paths. This method
+            //! is separated out so that it can be used in both default and copy constructors.
+
+            virtual void bind_params(void)
+            {
                 bind_param<unsigned int>(camera_num_, "camera_num");
                 bind_param<double>(image_timeout_, "image_timeout");
                 bind_param<unsigned int>(num_frames_, "num_frames");
@@ -54,8 +86,6 @@ namespace FrameReceiver
                 bind_param<double>(exposure_time_, "exposure_time");
                 bind_param<double>(frame_rate_, "frame_rate");
             }
-
-        private:
 
             unsigned int camera_num_;     //!< Camera number as enumerated by driver
             double image_timeout_;        //!< Image acquisition timeout in seconds
