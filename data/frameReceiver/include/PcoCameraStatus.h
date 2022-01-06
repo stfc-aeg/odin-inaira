@@ -42,6 +42,24 @@ namespace FrameReceiver
                 camera_type_(0),
                 camera_serial_(0)
             {
+                bind_params();
+            }
+
+            //! Resets the error status parameters
+            //!
+            //! This is a convenience method to allow the error status parameters to be reset to
+            //! their default "no error" state.
+
+            void reset_error_status(void)
+            {
+                error_code_ = error_code_none;
+                error_message_ = error_message_none;
+            }
+
+        private:
+
+            void bind_params(void)
+            {
                 // Bind overall state parameters
                 bind_param<std::string>(camera_state_name_, "camera/state");
                 bind_param<bool>(rearm_required_, "camera/rearm_required");
@@ -58,18 +76,6 @@ namespace FrameReceiver
                 bind_param<unsigned long>(camera_serial_, "camera/info/serial");
             }
 
-            //! Resets the error status parameters
-            //!
-            //! This is a convenience method to allow the error status parameters to be reset to
-            //! their default "no error" state.
-
-            void reset_error_status(void)
-            {
-                error_code_ = error_code_none;
-                error_message_ = error_message_none;
-            }
-
-        private:
             std::string camera_state_name_;  //!< Name of the current camera state
             bool rearm_required_;            //!< Indicates re-arm required due to config change
             bool acquiring_;                 //!< Flag if camera currently acquiring frames
