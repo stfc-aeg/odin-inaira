@@ -15,6 +15,22 @@
 namespace OdinData
 {
 
+//! Copy constructor
+//!
+//! This copy constructor implements a shallow copy of an existing parameter container. Note that
+//! it is NOT possible for the copy constructor to copy the setter and getter maps for parameters
+//! bound by derived classes, since base class constructors are called first. In order to implement
+//! a deep copy, the derived classes should implement bind_params (which is pure virtual) and call
+//! it from their own copy constructor before calling update() with the copied container.
+//!
+//! \param container - const reference to container to be copied
+
+ParamContainer::ParamContainer(const ParamContainer& container)
+{
+    // Explicilty copy the container JSON document
+    doc_.CopyFrom(container.doc_, doc_.GetAllocator());
+}
+
 //! Encodes the parameter container to a JSON-formatted string
 //!
 //! This method encodes the parameter container to a JSON-formatted string. The values of
@@ -45,7 +61,7 @@ std::string ParamContainer::encode(void)
 //! \param doc_obj - reference to the JSON document to encode parameters into
 //! \param prefix_path - string to prefix to the path of all bound parameters
 
-void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefix_path)
+void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefix_path) const
 {
     // Construct the JSON pointer prefix based on the prefix path
     std::string pointer_prefix = pointer_path("");
@@ -62,7 +78,7 @@ void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefi
 
     // Iterate through all the bound paramters in the getter map, retreiving their current
     // values and setting in the JSON document.
-    for (GetterFuncMap::iterator it = getter_map_.begin(); it != getter_map_.end(); ++it)
+    for (GetterFuncMap::const_iterator it = getter_map_.begin(); it != getter_map_.end(); ++it)
     {
         rapidjson::Value value_obj;
         (*it).second(value_obj);
@@ -109,6 +125,24 @@ void ParamContainer::update(const char* json)
 
     // Update parameters in the container from the parsed JSON document
     update(doc_);
+}
+
+//! Updates the values of the parameters from the specified parameter container
+//!
+//! This method updates the values of parameters from the speicifed parameter container.
+//! Parameters in the container that do not correspond to bound parameters in this container are
+//! ignored
+//!
+//! \param container - reference to a ParamContainer object to update parameters from
+
+void  ParamContainer::update(const ParamContainer& container)
+{
+    // Create a new param container document and encode the new container into it
+    ParamContainer::Document doc;
+    container.encode(doc);
+
+    // Update parametes in the container from the encoded document
+    update(doc);
 }
 
 //! Updates the values of the parameters from the specified JSON document

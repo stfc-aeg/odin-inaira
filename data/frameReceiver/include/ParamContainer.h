@@ -1,5 +1,5 @@
 /*!
- * ParamContainer.h - parameter container class with JSON encoding/decoding
+ * ParamContainer.h - abstract parameter container class with JSON encoding/decoding
  *
  * Created on: Oct 7, 2021
  *     Author: Tim Nicholls, STFC Detector Systems Software Group
@@ -81,18 +81,27 @@ class ParamContainer
         //! Use the RapidJSON Document type throughout
         typedef rapidjson::Document Document;
 
+        //! Default constructor
+        ParamContainer() {};
+
+        //! Copy constructor
+        ParamContainer(const ParamContainer& container);
+
         //! Encodes the parameter container to a JSON-formatted string
         std::string encode(void);
 
         //! Encodes the parameter container into an existing document, using the specified path
         //! as a prefix for all parameter paths
-        void encode(ParamContainer::Document& doc_obj, std::string prefix_path = std::string());
+        void encode(ParamContainer::Document& doc_obj, std::string prefix_path = std::string()) const;
 
         //! Updates the values of parameters from the specified JSON-formatted string
         void update(std::string json);
 
         //! Updates the values of the parameters from the specified JSON-formatted character array
         void update(const char* json);
+
+        //! Updates the values of the parameters from the specified parameter container
+        void update(const ParamContainer& container);
 
         //! Updates the values of the parameters from the specified JSON document
         void update(ParamContainer::Document& doc_obj);
@@ -235,6 +244,9 @@ class ParamContainer
 
     private:
 
+        //! Bind parameters - virtual method which must be defined in derived classes
+        virtual void bind_params(void) = 0;
+
         //! Sets the value of a parameter.
         //!
         //! This private template method is used by the param_set method to set the value of a
@@ -267,7 +279,7 @@ class ParamContainer
         //! \param path - reference to path string
         //! \return valid pointer path string
 
-        inline const std::string pointer_path(const std::string& path)
+        inline const std::string pointer_path(const std::string& path) const
         {
             // Set the pointer to the specified path
             std::string pointer_path(path);
