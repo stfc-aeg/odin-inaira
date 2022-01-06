@@ -136,23 +136,24 @@ bool PcoCameraLinkController::update_configuration(ParamContainer::Document& par
     bool update_ok = true;
     DWORD pco_error;
 
-    unsigned int current_timestamp_mode = camera_config_.timestamp_mode_;
-
-    // Update the camera configuration with the specified parameters
-    camera_config_.update(params);
+    // Create a copy of the current camera configuration for comparison and then update with
+    // the new parameter document
+    PcoCameraConfiguration new_config(camera_config_);
+    new_config.update(params);
 
     // Create a new delay/exposure configuration based on updated settings
-    PcoCameraDelayExposure new_delay_exp(camera_config_.exposure_time_, camera_config_.frame_rate_);
+    PcoCameraDelayExposure new_delay_exp(new_config.exposure_time_, new_config.frame_rate_);
 
     // If this delay/exposure configuration differs from the current settings, update the camera
     // parameters accordingly. Note that if the camera is recording this will cause an immediate
     // change in the frame rate and exposure time. If not, the camera must be re-armed to commit
     // those settings.
-    // TODO - if camera is not recording, flag that a re-arm is needed or disarm the camera if
-    // necessary
     if (new_delay_exp != camera_delay_exp_)
     {
-        LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating camera delay and exposure settings");
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating camera delay and exposure settings for "
+            << "exposure time: " << new_config.exposure_time_
+            << " and frame rate: " << new_config.frame_rate_
+        );
 
         bool delay_exp_updated = true;
 
@@ -179,21 +180,50 @@ bool PcoCameraLinkController::update_configuration(ParamContainer::Document& par
         if (delay_exp_updated)
         {
             camera_delay_exp_ = new_delay_exp;
+            camera_config_.exposure_time_ = new_config.exposure_time_;
+            camera_config_.frame_rate_ = new_config.frame_rate_;
         }
         update_ok &= delay_exp_updated;
     }
 
-    if (camera_config_.timestamp_mode_ != current_timestamp_mode)
+    // Update the camera timestamp mode if changed
+    if (new_config.timestamp_mode_ != camera_config_.timestamp_mode_)
     {
-        LOG4CXX_DEBUG_LEVEL(2, logger_,
-            "Updating camera timestamp mode to " << camera_config_.timestamp_mode_);
-        WORD timestamp_mode = static_cast<WORD>(camera_config_.timestamp_mode_);
 
-        pco_error = camera_->PCO_SetTimestampMode(timestamp_mode);
-        update_ok &= check_pco_error("Failed to set camera timestamp mode", pco_error);
+        LOG4CXX_DEBUG_LEVEL(2, logger_,
+            "Updating camera timestamp mode to " << new_config.timestamp_mode_);
+
+        pco_error = camera_->PCO_SetTimestampMode(static_cast<WORD>(new_config.timestamp_mode_));
+        bool timestamp_mode_updated =
+            check_pco_error("Failed to set camera timestamp mode", pco_error);
+        if (timestamp_mode_updated)
+        {
+            camera_config_.timestamp_mode_ = new_config.timestamp_mode_;
+        }
+        update_ok &= timestamp_mode_updated;
     }
 
-    LOG4CXX_DEBUG_LEVEL(2, logger_, "Camera config num_frames is now " << camera_config_.num_frames_)
+    // Update the grabber image timeout if changed
+    if (new_config.image_timeout_ != camera_config_.image_timeout_)
+    {
+        int grabber_timeout_ms = static_cast<int>(new_config.image_timeout_ * 1000);
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating grabber image timeout to "
+            << grabber_timeout_ms << "ms");
+        pco_error = grabber_->Set_Grabber_Timeout(grabber_timeout_ms);
+        bool image_timeout_updated = check_pco_error("Failed to update grabber timeout", pco_error);
+        if (image_timeout_updated)
+        {
+            camera_config_.image_timeout_ = new_config.image_timeout_;
+        }
+        update_ok &= image_timeout_updated;
+    }
+
+    // Update the number of frames to acquire if changed
+    if (new_config.num_frames_ != camera_config_.num_frames_)
+    {
+        LOG4CXX_DEBUG_LEVEL(2, logger_, "Updating number of frames to " << new_config.num_frames_);
+        camera_config_.num_frames_ = new_config.num_frames_;
+    }
 
     return update_ok;
 }
@@ -327,11 +357,11 @@ bool PcoCameraLinkController::connect(void)
     }
 
     // Set the grabber image acquisition timeout
-    int grabber_timeout_ms_ = static_cast<int>(camera_config_.image_timeout_ * 1000);
+    int grabber_timeout_ms = static_cast<int>(camera_config_.image_timeout_ * 1000);
     LOG4CXX_DEBUG_LEVEL(2, logger_, "Setting grabber image timeout to "
-        << grabber_timeout_ms_ << "ms"
+        << grabber_timeout_ms << "ms"
     );
-    pco_error = grabber_->Set_Grabber_Timeout(grabber_timeout_ms_);
+    pco_error = grabber_->Set_Grabber_Timeout(grabber_timeout_ms);
     if (!check_pco_error("Failed to set PCO grabber timeeout", pco_error))
     {
         return false;
