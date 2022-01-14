@@ -1,6 +1,6 @@
 import logging
 import sys
-import os
+import time
 import json
 
 from json.decoder import JSONDecodeError
@@ -34,25 +34,32 @@ class CameraController():
         self.command_response = ""
         self.config_file = ""
 
-        self.connected = False
+        self.connected = None
 
-        self.frame_timeout_ms = 1000
-        self.camera_num = 69420
-        self.exposure_time = 100
-        self.frame_rate = 1
-        self.image_timeout = 200
-        self.num_frames = 10000
+        self.frame_timeout_ms = None
+        self.camera_num = None
+        self.exposure_time = None
+        self.frame_rate = None
+        self.image_timeout = None
+        self.num_frames = None
         
-        self.acquiring = False
-        self.frames_acquired = 0
-        self.state = "disconnected"
+        self.acquiring = None
+        self.frames_acquired = None
+        self.state = None
+
+        self.change = None
+        self.state_up_button_text = None
+        self.state_up_button_enabled = None
+        self.state_down_button_text = None
+        self.state_down_button_enabled = None
+        self.timestamp_mode = False
 
         camera_config = self._request_config()
         if camera_config['msg_type'] == "ack":
             camera_config = camera_config['params']
-            
-            self.frame_timeout_ms = camera_config['frame_timeout_ms']
             camera_config = camera_config['camera']
+            
+            #self.frame_timeout_ms = camera_config['frame_timeout_ms']
             self.camera_num = camera_config['camera_num']
             self.exposure_time = camera_config['exposure_time']
             self.frame_rate = camera_config['frame_rate']
@@ -70,15 +77,24 @@ class CameraController():
                         }
         }, mutable=True)
 
+        self.status_change = ParameterTree({
+            'change' : (lambda: self.change, lambda a: self.update_state(a)),
+            'down_button_text' : (lambda: self.state_down_button_text, None),
+            'down_button_enabled' : (lambda: self.state_down_button_enabled, None),
+            'up_button_text' : (lambda: self.state_up_button_text, None),
+            'up_button_enabled' : (lambda: self.state_up_button_enabled, None)
+        })
+
         self.config_tree = ParameterTree({
             "enable_packet_logging": (False, None),
             "frame_timeout_ms": (lambda: self.frame_timeout_ms, None),
             "camera": {
-                "camera_num": (lambda: self.camera_num,       lambda a: self._check_config(self.camera_num, {'camera_num': a}, a)),
-                "exposure_time": (lambda: self.exposure_time, lambda a: self._check_config(self.exposure_time, {'exposure_time': a}, a)),
-                "frame_rate": (lambda: self.frame_rate,       lambda a: self._check_config(self.frame_rate, {'frame_rate': a}, a)),
-                "image_timeout": (lambda: self.image_timeout, lambda a: self._check_config(self.image_timeout, {"image_timeout": a}, a)),
-                "num_frames": (lambda: self.num_frames,       lambda a: self._check_config(self.num_frames, {"num_frames": a}, a))
+                "camera_num": (lambda: self.camera_num,       lambda a: self._send_config({'camera_num': a})),
+                "exposure_time": (lambda: self.exposure_time, lambda a: self._send_config({'exposure_time': a})),
+                "frame_rate": (lambda: self.frame_rate,       lambda a: self._send_config({'frame_rate': a})),
+                "image_timeout": (lambda: self.image_timeout, lambda a: self._send_config({"image_timeout": a})),
+                "num_frames": (lambda: self.num_frames,       lambda a: self._send_config({"num_frames": a})),
+                "timestamp_mode": (lambda: self.timestamp_mode, lambda a: self._send_config({"timestamp_mode": a}))
             }
         })
 
@@ -87,6 +103,7 @@ class CameraController():
             "ctrl_endpoint": (self.ctrl_endpoint, None),
             "status": self.status_tree,
             "config": self.config_tree,
+            "status_change": self.status_change,
             "config_file": (lambda: self.config_file, self.send_config_file),
             "command": (lambda: self.command_response, self.do_command)
             # "request_config": (self._request_config, None)
@@ -96,7 +113,7 @@ class CameraController():
             self.get_camera_state, status_refresh  # Get Camera State once every second
         )
         self.background_task.start()
-
+         
     def get(self, path, request):
 
         response = self.param_tree.get(path)
@@ -110,6 +127,7 @@ class CameraController():
 
     def get_camera_state(self):
         
+        # Request the status.
         reply = self._send_cmd("status")
 
         try:
@@ -120,6 +138,7 @@ class CameraController():
         except KeyError as err:
             logging.error("Key Not Found: {}".format(err))
 
+        # Request the config.
         reply = self._send_cmd("request_configuration")
 
         try:
@@ -182,12 +201,6 @@ class CameraController():
         
         self._send_config(params)
 
-    def _check_config(self, config_param, params, a):
-        if (config_param == a):
-            logging.debug("CONFIG PARAMETER NOT CHANGED")
-        else:
-            self._send_config(params)
-
     def _send_config(self, params=None):
         """Set PCO camera controller confiugration parameters.
 
@@ -205,7 +218,6 @@ class CameraController():
         else:
             logging.debug("SENDING PARAMS FROM PARAM_TREE")
             reply = self._send_cmd('configure', self.config_tree.get('camera'))
-        # logging.info(f"Configuration response: \n{self.format_json(reply)}")
 
     def _request_config(self):
         """Get the configuration of the PCO camera controller.
@@ -247,3 +259,65 @@ class CameraController():
             reply = self.ctrl_channel.recv()
 
         return IpcMessage(from_str=reply)
+
+    def update_state(self, state_change):
+        # Set the button text as their defaults.
+        up_text = None
+        up_enabled = None
+        down_text = None
+        down_enabled = None
+
+        command = None
+        state = self.state
+        logging.debug("The cameras state is:" + state)
+            
+        if state_change == "_innit_":
+            if state == "disconnected":
+                    up_text, down_text, up_enabled, down_enabled = "Connect", "Disconnect", True, False
+            elif state == "connected":
+                    up_text, down_text, up_enabled, down_enabled = "Arm", "Disconnect", True, True
+            elif state == "armed":
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True
+            elif state == "running":
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Stop", False, True
+            command = ""
+            
+        else:
+            if state == "disconnected":
+                if state_change == "up":
+                    command = "connect"
+                    up_text, down_text, up_enabled, down_enabled = "Arm", "Disconnect", True, True
+                else:
+                    command = ""
+                    logging.warn("Incorrect State Change Request: A camera in the disconnected state cannot be disconnected further")
+            elif state == "connected":
+                if state_change == "up":
+                    command = "arm"
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True
+                else:
+                    command = "disconnect"
+                    up_text, down_text, up_enabled, down_enabled = "Connect", "Disconnect", True, False
+            elif state == "armed":
+                if state_change == "up":
+                    command = "start"
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Stop", False, True
+                else:
+                    command = "disarm"
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Disconnect", True, True
+            elif state == "running":
+                if state_change == "down":
+                    command = "stop"
+                    up_text, down_text, up_enabled, down_enabled = "Start", "Disarm", True, True
+                else:
+                    command = ""
+                    logging.warn("Incorrect State Change Request: A camera in the running state cannot be told to run more")
+
+        try:
+            self.do_command(command)
+        except:
+            logging.warn("Error or something.. I need to improve the error handling :D")
+        
+        self.state_up_button_text = up_text
+        self.state_up_button_enabled = up_enabled
+        self.state_down_button_text = down_text
+        self.state_down_button_enabled = down_enabled

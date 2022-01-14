@@ -253,7 +253,7 @@ def parse_json_args(ctx, _, values):
     return parsed_args
 
 @click.group()
-@click.option("--ctrl", default="tcp://127.0.0.1:5060", show_default=True,
+@click.option("--ctrl", default="tcp://0.0.0.0:6973", show_default=True,
     help="Camera control channel endpoint URL", metavar="URL")
 @click.pass_context
 def cli(ctx, ctrl):

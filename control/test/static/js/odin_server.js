@@ -4,6 +4,14 @@ camera_config = {};
 camera_status = {};
 local_config = {};
 
+/**
+ *  TODO:
+ *      - Disable/Grey out/Remove state change buttons that will do nothing.
+ *      
+ * 
+ */
+
+
 //#region On Page Ready
 
 /**
@@ -15,6 +23,7 @@ $( document ).ready(function() {
     // First get the values from the adapter
     get_config();
     get_status();
+    change_state("_innit_");
     
     get_timer();
 });
@@ -24,7 +33,7 @@ $( document ).ready(function() {
  */
 
  function get_timer() {
-    setTimeout(get_these, 2000);
+    setTimeout(get_these, 1000);
 }
 
 function get_these() {
@@ -71,6 +80,7 @@ function get_status(){
 
         camera_status = JSON.parse(JSON.stringify(return_evaluated_object(adapter_camera_status)));
         update_status();
+        update_state_buttons();
     }
     );
     console.log("Got and updated status");
@@ -129,12 +139,15 @@ function update_frame_data() {
  */
  function update_config(){
     Object.entries(local_config).forEach(entry => {
-        const [key, value] = entry;
-        // Is it currently being edited
-        if (!(get_focused_element() == key)){
-            // Is it changed?
-            if (!(value.changed)) {
-                get_element_by_id(key).value = value.value;
+        const [key, entry_value] = entry;
+        // Timestamp mode is node exposed to the user.. should probably filter this out during the creation of local copy... meta data can do this
+        if (key != 'timestamp_mode'){      
+            // Is it currently being edited
+            if (!(get_focused_element() == key)){
+                // Is it changed?
+                if (!(entry_value.changed) && entry_value != null) {
+                    get_element_by_id(key).value = entry_value.value;
+                }
             }
         }
     });
@@ -146,8 +159,8 @@ function update_frame_data() {
 
 function update_status(){
     Object.entries(camera_status).forEach(entry => {
-        const [key, value] = entry;
-        get_element_by_id(key).innerText = value;
+        const [key, entry_value] = entry;
+        get_element_by_id(key).innerText = entry_value;
     });
 }
 
@@ -159,6 +172,15 @@ function refresh_config(){
         const [key, value] = entry;
         get_element_by_id(key).value = value;       
     });
+
+    // Reset the local copy of config to default.
+    Object.entries(local_config).forEach(entry => {
+        const [key, value] = entry;
+        if (value.changed){
+            local_config[key]["changed"] = false;
+            local_config[key]["value"] = camera_config[key];
+        }
+    });
     console.log("Refreshed config to camera level");
 }
 
@@ -166,7 +188,7 @@ function refresh_config(){
  * Will update the state display buttons.
  */
 function update_state_buttons(){
-    $.getJSON('/api/' + api_version + '/inaira/', function(response){
+    $.getJSON('/api/' + api_version + '/inaira/camera_control/status_change/', function(response){
         up_button = get_element_by_id("stateUp");
         down_button = get_element_by_id("stateDown");
         up_button.innerText = response.status_change.up_button_text;
@@ -195,20 +217,21 @@ function config_input_changed(element_id){
 function send_config(){
     // Put config updates
     config_data = {};
-    // Checks if the "changed" value is true on the local copy.
 
+    // Checks if the "changed" value is true on the local copy.
     Object.entries(local_config).forEach(entry => {
         const [key, value] = entry;
         if (value.changed){
-            //Now compare with the original
+            // Now compare with the original
             if (!(value.value == camera_config[key])){
+                // Add it to the list of values to send.
                 config_data[key] = value.value;
+
+                // Reset local config to not changed
+                local_config[key]["changed"] = false;
             }
         }
     });
-
-    console.log(config_data);
-    console.log(JSON.stringify(config_data));
 
     if (Object.keys(config_data).length > 0){
         $.ajax({
@@ -223,24 +246,38 @@ function send_config(){
 
 }
 
+/**
+ * Sends the change of state.
+ */
+function change_state(change){
+    $.ajax({
+        type: "PUT",
+        url: '/api/' + api_version + '/inaira/camera_control/status_change',
+        contentType: "application/json",
+        data: '{"change": "' + change + '"}'
+    });
+}
+
 //#endregion
 
 //#region Functions called from within odin_server.js
 
 /**
- * Get values from the document
+ * Get values from the document.
  */
 function get_element_by_id(element_id){
     return document.getElementById(element_id);
 }
 
+/**
+ * Return the ID of the focused element.
+ */
 function get_focused_element(){
     return document.activeElement;
 }
 /**
  * Evaluate object for other objects. 
  */
-
 function return_evaluated_object(object_to_evaluate){
     return_value = {};
     loop = true;
@@ -248,16 +285,16 @@ function return_evaluated_object(object_to_evaluate){
     while (loop) {
         new_evaluation = {};
         Object.entries(evaluate).forEach(entry => {
-            const [key, value] = entry;
+            const [key, entry_value] = entry;
             // Not an Object
-            if (typeof value !== 'object'){
-                return_value[key] = value;
+            if (typeof entry_value !== 'object'){
+                return_value[key] = entry_value;
                 delete evaluate[key];
             } 
 
             // An Object
-            if (Object.keys(evaluate).length != 0 && Object.keys(value).length > 0) {
-                new_value = value;
+            if (typeof entry_value === 'object') {
+                new_value = entry_value;
                 Object.entries(new_value).forEach(new_entry => {
                     const [new_key, new_value] = new_entry;
                     new_evaluation[new_key] = new_value;
@@ -278,72 +315,3 @@ function return_evaluated_object(object_to_evaluate){
 
 
 //#endregion
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Random Stuff I need to figure out what it does.
- */
-
-function change_enable() {
-    var enabled = $('#task-enable').prop('checked');
-    console.log("Enabled changed to " + (enabled ? "true" : "false"));
-    $.ajax({
-        type: "PUT",
-        url: '/api/' + api_version + '/workshop/background_task',
-        contentType: "application/json",
-        data: JSON.stringify({'enable': enabled})
-    });
-}
-
-
