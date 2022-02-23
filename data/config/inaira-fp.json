@@ -1,10 +1,9 @@
 [
     {
         "fr_setup": {
-            "fr_ready_cnxn":"tcp://127.0.0.1:5001",
-            "fr_release_cnxn":"tcp://127.0.0.1:5002"
-        },
-    "meta_endpoint":"tcp://*:5008"
+            "fr_ready_cnxn":"tcp://0.0.0.0:6969",
+            "fr_release_cnxn":"tcp://0.0.0.0:6970"
+        }
     },
     {
         "plugin": {
@@ -64,16 +63,15 @@
             "decode_header": true,
             "test_model": false,
             "test_img_path": "include/casting_model/cast_ok_0_10.jpeg",
-            "result_socket_addr": "tcp://0.0.0.0:5030",
-            "send_results": true,
+            "result_socket_addr": "tcp://0.0.0.0:6971",
+            "send_results": false,
             "send_image": true
 
         }
     },
     {
         "liveview": {
-            "live_view_socket_addr":"tcp://0.0.0.0:5020"
-
+            "live_view_socket_addr":"tcp://0.0.0.0:6972"
         }
     },
     {

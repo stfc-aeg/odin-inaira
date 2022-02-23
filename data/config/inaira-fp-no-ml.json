@@ -1,0 +1,47 @@
+[
+    {
+        "fr_setup": {
+            "fr_ready_cnxn":"tcp://0.0.0.0:6969",
+            "fr_release_cnxn":"tcp://0.0.0.0:6970"
+        }
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"pcocamera",
+                "name":"PcoCameraProcessPlugin",
+                "library":"./lib/libPcoCameraProcessPlugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "load": {
+                "index":"liveview",
+                "name":"LiveViewPlugin",
+                "library":"./lib/libLiveViewPlugin.so"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"pcocamera",
+                "connection":"frame_receiver"
+            }
+        }
+    },
+    {
+        "plugin": {
+            "connect": {
+                "index":"liveview",
+                "connection":"pcocamera"
+            }
+        }
+    },
+    {
+        "liveview": {
+            "live_view_socket_addr":"tcp://0.0.0.0:6972"
+        }
+    }
+]

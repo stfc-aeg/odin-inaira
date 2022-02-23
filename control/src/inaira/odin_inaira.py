@@ -13,7 +13,6 @@ David Symons
 import logging
 from threading import currentThread
 import tornado
-import time
 import sys
 import zmq
 import json
@@ -49,35 +48,32 @@ class OdinInaira(object):
         logging.debug("Inistialising INAIRA Adapter")
 
         # Save and initialise argumenets
-        self.frame_process_time = None
-        self.total_process_time = None
-        self.pass_ratio = None
-        self.good_frames = None
-        self.classification = None
-        self.certainty = None
-        self.frame_number = None
-        self.process_time = None
-        self.avg_process_time = None
-        self.total_frames = None
+        self.frame_process_time = 10
+        self.total_process_time = 11
+        self.pass_ratio = 1
+        self.good_frames = 1
+        self.classification = "Good"
+        self.certainty = 1
+        self.frame_number = 1
+        self.process_time = 1
+        self.avg_process_time = 1
+        self.total_frames = 1
 
         self.process_live_image = live_image
-
-        # Store initialisation time
-        self.init_time = time.time()
 
         # Get package version information
         version_info = get_versions()
 
         self.adapters = {}
 
-        frame_data_parameters = ParameterTree({
+        self.frame_data_parameters = ParameterTree({
             'frame_number' : (lambda: self.frame_number, None),
             'process_time' : (lambda: self.process_time, None),
             'classification' : (lambda: self.classification, None),
             'certainty' : (lambda: self.certainty, None)
         })
 
-        experiment_data_parameters = ParameterTree({
+        self.experiment_data_parameters = ParameterTree({
             'avg_processing_time' : (lambda: self.avg_process_time, None),
             'pass_ratio' : (lambda: self.pass_ratio, None),
             'total_frames' : (lambda: self.total_frames, None)
@@ -87,9 +83,8 @@ class OdinInaira(object):
         self.param_tree = ParameterTree({
             'odin_version': version_info['version'],
             'tornado_version': tornado.version,
-            'server_uptime': (self.get_server_uptime, None),
-            'frame' : frame_data_parameters,
-            'experiment' : experiment_data_parameters
+            'frame' : self.frame_data_parameters,
+            'experiment' : self.experiment_data_parameters
 
         })
 
@@ -110,10 +105,6 @@ class OdinInaira(object):
         if not self.ipc_channels:
             logging.warning(
                 "Warning: No subscriptions made. Check the configuration file for valid endpoints")
-
-
-    def get_server_uptime(self):
-        return time.time() - self.init_time
 
     def get(self, path):
         return self.param_tree.get(path)

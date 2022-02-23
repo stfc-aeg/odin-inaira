@@ -174,6 +174,15 @@ namespace FrameProcessor
                 publish_socket_.send(results);
             }
         }
+        else
+        {
+            if(send_image_)
+            {
+            InairaMLPlugin::LiveImageData live_image = sendImage(frame);
+            publish_socket_.send(live_image.json_header, ZMQ_SNDMORE);
+            publish_socket_.send(frame->get_image_size(), live_image.frame_data_ptr, 0);
+            }
+        }
         this->push(frame);
     }
 
