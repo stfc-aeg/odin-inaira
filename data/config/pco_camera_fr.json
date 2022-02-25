@@ -6,7 +6,7 @@
     "frame_release_endpoint": "tcp://127.0.0.1:5002",
     "shared_buffer_name": "PcoCameraBuffer",
     "rx_type": "cameralink",
-    "max_buffer_mem": 840000000,
+    "max_buffer_mem": 8000000000,
     "decoder_path": "./lib",
     "decoder_type": "PcoCameraLink",
     "decoder_config": {

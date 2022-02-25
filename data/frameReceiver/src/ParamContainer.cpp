@@ -1,8 +1,42 @@
+/*!
+ * ParamContainer.cpp - parameter container class with JSON encoding/decoding
+ *
+ * This class implements a simple parameter container with JSON encoding/decoding, allowing
+ * applications to maintain e.g. configuration and status parameters with easy integration
+ * with external client control via JSON message payloads (e.g IpcMessage).
+ *
+ * Created on: Oct 7, 2021
+ *     Author: Tim Nicholls, STFC Detector Systems Software Group
+ */
+
 #include <sstream>
 #include "ParamContainer.h"
 
 namespace OdinData
 {
+
+//! Copy constructor
+//!
+//! This copy constructor implements a shallow copy of an existing parameter container. Note that
+//! it is NOT possible for the copy constructor to copy the setter and getter maps for parameters
+//! bound by derived classes, since base class constructors are called first. In order to implement
+//! a deep copy, the derived classes should implement bind_params (which is pure virtual) and call
+//! it from their own copy constructor before calling update() with the copied container.
+//!
+//! \param container - const reference to container to be copied
+
+ParamContainer::ParamContainer(const ParamContainer& container)
+{
+    // Explicilty copy the container JSON document
+    doc_.CopyFrom(container.doc_, doc_.GetAllocator());
+}
+
+//! Encodes the parameter container to a JSON-formatted string
+//!
+//! This method encodes the parameter container to a JSON-formatted string. The values of
+//! all bound parameters in the container are encoded into return JSON string.
+//!
+//! \return JSON-encoded string of all bound parameters in the container
 
 std::string ParamContainer::encode(void)
 {
@@ -18,19 +52,33 @@ std::string ParamContainer::encode(void)
     return encoded;
 }
 
-void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefix_path)
+//! Encodes the parameter container into an existing document
+//!
+//! This method encodes the paramter container into a JSON document, using the specified path
+//! as a prefix for all parameter paths. The values of all bound parameters are encoded into
+//! the document.
+//!
+//! \param doc_obj - reference to the JSON document to encode parameters into
+//! \param prefix_path - string to prefix to the path of all bound parameters
+
+void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefix_path) const
 {
+    // Construct the JSON pointer prefix based on the prefix path
     std::string pointer_prefix = pointer_path("");
     if (!prefix_path.empty())
     {
-        pointer_prefix += prefix_path; // + "/";
+        pointer_prefix += prefix_path;
+
+        // Ensure that the pointer prefix is correctly terminated with a trailing slash.
         if (*pointer_prefix.rbegin() != '/')
         {
             pointer_prefix += "/";
         }
     }
 
-    for (GetterFuncMap::iterator it = getter_map_.begin(); it != getter_map_.end(); ++it)
+    // Iterate through all the bound paramters in the getter map, retreiving their current
+    // values and setting in the JSON document.
+    for (GetterFuncMap::const_iterator it = getter_map_.begin(); it != getter_map_.end(); ++it)
     {
         rapidjson::Value value_obj;
         (*it).second(value_obj);
@@ -39,31 +87,79 @@ void ParamContainer::encode(ParamContainer::Document& doc_obj, std::string prefi
     }
 }
 
+//! Updates the values of parameters from the specified JSON-formatted string
+//!
+//! This method updates the values of the parameters from the specfied JSON-formatted string.
+//! Parameters in the string that do not correspond to bound parameters in the container are
+//! ignored.
+//!
+//! \param json - JSON-formatted string to update parameters from
 
 void ParamContainer::update(std::string json)
 {
     update(json.c_str());
 }
 
+//! Updates the values of parameters from the specified JSON-formatted character array
+//!
+//! This method updates the values of the parameters from the specfied JSON-formatted character.
+//! array. Parameters in the array that do not correspond to bound parameters in the container are
+//! ignored.
+//!
+//! \param json - pointer to a JSON-formatted character array to update parameters from
+
 void ParamContainer::update(const char* json)
 {
+    // Parse the JSON argument into the document
     doc_.Parse(json);
+
+    // Throw an informative exception of parse errors were encountered
     if (doc_.HasParseError())
     {
         std::stringstream ss;
-        ss << "JSON parse error updating configuration from string at offset " 
+        ss << "JSON parse error updating configuration from string at offset "
             << doc_.GetErrorOffset() ;
         ss << " : " << rapidjson::GetParseError_En(doc_.GetParseError());
         throw ParamContainerException(ss.str());
     }
 
+    // Update parameters in the container from the parsed JSON document
     update(doc_);
 }
 
+//! Updates the values of the parameters from the specified parameter container
+//!
+//! This method updates the values of parameters from the speicifed parameter container.
+//! Parameters in the container that do not correspond to bound parameters in this container are
+//! ignored
+//!
+//! \param container - reference to a ParamContainer object to update parameters from
+
+void  ParamContainer::update(const ParamContainer& container)
+{
+    // Create a new param container document and encode the new container into it
+    ParamContainer::Document doc;
+    container.encode(doc);
+
+    // Update parametes in the container from the encoded document
+    update(doc);
+}
+
+//! Updates the values of the parameters from the specified JSON document
+//!
+//! This method updates the values of the parameters from the specfied JSON document object.
+//! Parameters in the document that do not correspond to bound parameters in the container are
+//! ignored.
+//!
+//! \param json - reference to a JSON document obhect to update paramters from
+
 void ParamContainer::update(ParamContainer::Document& doc_obj)
 {
+    // Iterate through all bound parameters in the setter function map
     for (SetterFuncMap::iterator it = setter_map_.begin(); it != setter_map_.end(); ++it)
     {
+        // If the path of the bound parameter is found in the JSON document, call the setter
+        // function to update the value of the parameter
         if (rapidjson::Value* value_ptr = rapidjson::Pointer(
             pointer_path((*it).first).c_str()).Get(doc_obj)
         )
@@ -72,6 +168,9 @@ void ParamContainer::update(ParamContainer::Document& doc_obj)
         }
     }
 }
+
+// Explicit specialisations of the set_value and get_value methods, mapping native attribute types
+// to the appropriate RapidJSON storage type.
 
 template<> int ParamContainer::set_value(rapidjson::Value& value_obj) const
 {
@@ -94,6 +193,8 @@ template<> void ParamContainer::get_value(unsigned int& param, rapidjson::Value&
 }
 
 #ifdef __APPLE__
+// The MacOS clang compiler seems to base uint64 on a different base type than gcc on Linux, causing
+// linker errors with templated specialisations of get_value and set_value for unsigned long.
 template<> unsigned long ParamContainer::set_value(rapidjson::Value& value_obj) const
 {
   return value_obj.GetUint64();
